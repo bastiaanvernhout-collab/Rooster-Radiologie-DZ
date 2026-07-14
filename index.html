@@ -174,12 +174,12 @@
   table.raw{ border-collapse:collapse; width:100%; font-size:12.5px; }
   table.raw td{ border:1px solid var(--line); padding:5px 8px; white-space:nowrap; }
   .raw-wrap{
-    overflow:auto; max-height:68vh; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel);
+    overflow-x:auto; overflow-y:visible; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel);
   }
 
   table.vak-table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px; }
   table.vak-table th{
-    position:sticky; top:0; background:var(--ink); color:#fff;
+    position:sticky; top:66px; background:var(--ink); color:#fff;
     font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600;
     padding:10px 12px; text-align:left; z-index:2;
   }
@@ -299,9 +299,9 @@
     .btn-primary{ padding:8px 14px; font-size:12.5px; }
     .btn-row{ margin-top:12px; gap:8px; }
 
-    .raw-wrap{ max-height:50vh; border-radius:10px; }
+    .raw-wrap{ border-radius:10px; }
     table.vak-table{ font-size:10.5px; min-width:400px; }
-    table.vak-table th{ font-size:8px; padding:6px 6px; letter-spacing:.04em; }
+    table.vak-table th{ top:42px; font-size:8px; padding:6px 6px; letter-spacing:.04em; }
     table.vak-table td{ padding:5px 6px; font-size:10.5px; }
     .vak-row-label{ font-size:9px; width:50px; letter-spacing:.02em; }
     .vak-section-row td{ font-size:9px; padding:5px 6px; }
