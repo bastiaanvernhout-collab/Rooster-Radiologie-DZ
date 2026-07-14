@@ -174,14 +174,14 @@
   table.raw{ border-collapse:collapse; width:100%; font-size:12.5px; }
   table.raw td{ border:1px solid var(--line); padding:5px 8px; white-space:nowrap; }
   .raw-wrap{
-    overflow-x:auto; overflow-y:visible; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel);
+    overflow-x:auto; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel);
   }
 
   table.vak-table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px; }
   table.vak-table th{
-    position:sticky; top:66px; background:var(--ink); color:#fff;
+    background:var(--ink); color:#fff;
     font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600;
-    padding:10px 12px; text-align:left; z-index:2;
+    padding:10px 12px; text-align:left;
   }
   table.vak-table td{ padding:8px 12px; border-bottom:1px solid var(--line); font-size:13px; }
   table.vak-table tr:last-child td{ border-bottom:none; }
@@ -191,13 +191,14 @@
   }
   .vak-row-label{ font-weight:600; color:var(--ink-soft); font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; width:90px; }
 
-  /* Freeze the header row and the first (label) column, like Excel panes */
+  /* Freeze only the first (label) column horizontally, like Excel panes — the header
+     row is intentionally NOT sticky vertically, since that clashed with the topbar. */
   table.vak-table th:first-child,
   table.vak-table td.vak-row-label{
     position:sticky; left:0; z-index:1; background:var(--panel);
   }
   table.vak-table th:first-child{
-    background:var(--ink); z-index:3; /* corner cell: sticky on both axes, above everything else */
+    background:var(--ink); z-index:2;
   }
 
   .toast{
@@ -301,7 +302,7 @@
 
     .raw-wrap{ border-radius:10px; }
     table.vak-table{ font-size:10.5px; min-width:400px; }
-    table.vak-table th{ top:42px; font-size:8px; padding:6px 6px; letter-spacing:.04em; }
+    table.vak-table th{ font-size:8px; padding:6px 6px; letter-spacing:.04em; }
     table.vak-table td{ padding:5px 6px; font-size:10.5px; }
     .vak-row-label{ font-size:9px; width:50px; letter-spacing:.02em; }
     .vak-section-row td{ font-size:9px; padding:5px 6px; }
