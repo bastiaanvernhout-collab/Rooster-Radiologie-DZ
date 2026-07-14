@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Weekrooster · Radiologie DZ · roosterapp-1</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12213D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#12213D;
+    --ink-soft:#33456A;
+    --paper:#F4F7F7;
+    --panel:#FFFFFF;
+    --line:#DCE3E6;
+    --amber:#F2A93B;
+    --amber-deep:#B9761F;
+    --teal:#2E7D6B;
+    --teal-deep:#1F5A4D;
+    --red:#C24C3D;
+    --shadow: 0 1px 2px rgba(18,33,61,0.06), 0 8px 24px rgba(18,33,61,0.06);
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', -apple-system, sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Space Grotesk', 'IBM Plex Sans', sans-serif;
+    letter-spacing:-0.01em;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; letter-spacing:0.02em; }
+
+  /* ---- update banner ---- */
+  #update-banner{
+    display:none;
+    position:sticky; top:0; z-index:50;
+    background:var(--ink); color:#fff;
+    padding:10px 16px;
+    font-size:14px;
+    align-items:center; justify-content:center; gap:12px;
+  }
+  #update-banner.show{ display:flex; }
+  #update-banner button{
+    background:var(--amber); color:var(--ink); border:none;
+    font-weight:600; padding:6px 14px; border-radius:999px; cursor:pointer;
+    font-size:13px;
+  }
+
+  /* ---- top app bar ---- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; background:var(--panel); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:40;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(155deg, var(--ink) 0%, var(--ink-soft) 100%);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--amber); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px;
+  }
+  .brand-name{ font-weight:600; font-size:15px; }
+  .brand-role{ font-size:12px; color:var(--ink-soft); }
+  .topbar-actions{ display:flex; gap:8px; align-items:center; }
+  .btn-ghost{
+    border:1px solid var(--line); background:transparent; color:var(--ink-soft);
+    padding:7px 12px; border-radius:999px; font-size:13px; cursor:pointer; font-family:inherit;
+  }
+  .btn-ghost:hover{ border-color:var(--ink-soft); color:var(--ink); }
+
+  main{ max-width:960px; margin:0 auto; padding:28px 20px 80px; }
+
+  /* ---- split-flap week header ---- */
+  .week-board{
+    display:flex; align-items:center; gap:16px; margin-bottom:28px; flex-wrap:wrap;
+  }
+  .flap{
+    background:var(--ink); color:#fff; border-radius:10px;
+    padding:14px 18px; font-family:'IBM Plex Mono',monospace;
+    box-shadow: var(--shadow); min-width:64px; text-align:center;
+  }
+  .flap .num{ font-size:26px; font-weight:600; line-height:1; }
+  .flap .lbl{ font-size:10px; letter-spacing:0.12em; color:#9FB0CE; margin-top:4px; text-transform:uppercase; }
+  .week-meta{ font-size:14px; color:var(--ink-soft); }
+  .week-meta strong{ color:var(--ink); }
+
+  /* ---- role select ---- */
+  .role-grid{ display:flex; flex-direction:column; gap:10px; }
+  .role-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 18px; cursor:pointer; text-align:left; box-shadow:var(--shadow);
+    transition:transform .12s ease, border-color .12s ease;
+    font-family:inherit;
+  }
+  .role-card:hover{ transform:translateY(-1px); border-color:var(--ink-soft); }
+  .role-tag{ font-size:10.5px; text-transform:uppercase; letter-spacing:.1em; font-weight:600; }
+  .role-card h3{ margin:4px 0 3px; font-size:16px; }
+  .role-card p{ margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.4; }
+  .tag-intern{ color:var(--ink-soft); }
+  .tag-extern-seh{ color:var(--red); }
+  .tag-extern-msk{ color:var(--teal-deep); }
+  .tag-admin{ color:var(--amber-deep); }
+
+  /* ---- cards / sections ---- */
+  .section{ margin-bottom:32px; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; }
+  .section-head h2{ font-size:17px; margin:0; }
+  .section-head .hint{ font-size:12.5px; color:var(--ink-soft); }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .pad{ padding:20px; }
+
+  .day-row{
+    display:grid; grid-template-columns: 96px 1fr 1fr; gap:0;
+    border-bottom:1px solid var(--line);
+  }
+  .day-row:last-child{ border-bottom:none; }
+  .day-row > div{ padding:14px 16px; }
+  .day-label{ font-weight:600; font-size:13.5px; display:flex; align-items:center; background:#FAFBFB; border-right:1px solid var(--line); border-radius: 0; }
+  .day-row:first-child .day-label{ border-top-left-radius:var(--radius); }
+  .day-row:last-child .day-label{ border-bottom-left-radius:var(--radius); }
+  .slot-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin-bottom:4px; }
+  .slot-name{ font-size:14.5px; font-weight:600; }
+  .slot-sup{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .pill{
+    display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600;
+    background:rgba(242,169,59,0.16); color:var(--amber-deep); margin-left:6px;
+  }
+
+  /* form inputs */
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:.05em; }
+  .field input{
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+    font-family:inherit; font-size:14px; background:#fff;
+  }
+  .field input:focus{ outline:2px solid var(--amber); outline-offset:1px; border-color:var(--amber); }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .day-form-block{ padding:16px 18px; border-bottom:1px solid var(--line); }
+  .day-form-block:last-of-type{ border-bottom:none; }
+  .day-form-title{ font-weight:600; font-size:13.5px; margin-bottom:10px; }
+
+  .upload-zone{
+    display:block; border:1.5px dashed var(--line); border-radius:var(--radius); padding:36px 20px;
+    text-align:center; background:#FAFBFB; cursor:pointer;
+  }
+  .upload-zone:hover{ border-color:var(--ink-soft); }
+  .upload-zone input{ display:none; }
+  .upload-icon{ font-size:26px; margin-bottom:8px; }
+
+  .btn-primary{
+    background:var(--ink); color:#fff; border:none; padding:11px 20px; border-radius:999px;
+    font-weight:600; font-size:14px; cursor:pointer; font-family:inherit;
+  }
+  .btn-primary:hover{ background:var(--ink-soft); }
+  .btn-primary:disabled{ background:#B9C2CE; cursor:not-allowed; }
+  .btn-row{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+
+  .empty{
+    text-align:center; padding:50px 20px; color:var(--ink-soft);
+  }
+  .empty .glyph{ font-size:30px; margin-bottom:10px; }
+
+  table.raw{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  table.raw td{ border:1px solid var(--line); padding:5px 8px; white-space:nowrap; }
+  .raw-wrap{ overflow-x:auto; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel); }
+
+  table.vak-table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px; }
+  table.vak-table th{
+    position:sticky; top:0; background:var(--ink); color:#fff;
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600;
+    padding:10px 12px; text-align:left; z-index:1;
+  }
+  table.vak-table th.vak-corner{ background:var(--ink); }
+  table.vak-table td{ padding:8px 12px; border-bottom:1px solid var(--line); font-size:13px; }
+  table.vak-table tr:last-child td{ border-bottom:none; }
+  .vak-section-row td{
+    background:#EEF2F1; color:var(--teal-deep); font-weight:700; font-size:12px;
+    text-transform:uppercase; letter-spacing:.06em; padding:8px 12px;
+  }
+  .vak-row-label{ font-weight:600; color:var(--ink-soft); font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; width:90px; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:12px 20px; border-radius:999px;
+    font-size:14px; font-weight:600; box-shadow:var(--shadow); z-index:100;
+    display:flex; align-items:center; gap:8px;
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+
+  .badge-source{
+    font-size:11px; color:var(--ink-soft); background:#EEF1F0; padding:3px 9px; border-radius:6px;
+  }
+  .weekend-strip{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:12px; }
+  .weekend-item{ background:#FAFBFB; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:12.5px; }
+  .weekend-item b{ display:block; font-size:13px; margin-bottom:3px; }
+
+  /* ---- multi-week: pills + cards ---- */
+  .week-pills{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .week-pill{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel); border:1px solid var(--line); border-radius:999px;
+    padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; color:var(--ink);
+  }
+  .week-pill:hover{ border-color:var(--ink-soft); }
+  .week-pill.active{ border-color:var(--ink); background:var(--ink); color:#fff; }
+  .week-pill.active .week-pill-status{ background:rgba(255,255,255,0.18); color:#fff; }
+  .week-pill-status{ font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; font-weight:700; padding:2px 7px; border-radius:999px; }
+  .status-huidig{ background:rgba(46,125,107,0.15); color:var(--teal-deep); }
+  .status-aankomend{ background:rgba(242,169,59,0.18); color:var(--amber-deep); }
+  .status-gearchiveerd{ background:#E7E9EC; color:#66707E; }
+  .history-toggle{ margin:2px 0 16px; }
+  .week-pills.history{ margin-bottom:16px; }
+
+  .week-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+  .week-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; text-align:left; cursor:pointer; box-shadow:var(--shadow); font-family:inherit;
+    display:flex; flex-direction:column; gap:7px; align-items:flex-start;
+  }
+  .week-card:hover{ border-color:var(--ink-soft); transform:translateY(-1px); }
+  .week-card-num{ font-weight:700; font-size:15px; font-family:'Space Grotesk',sans-serif; }
+  .week-card-range{ font-size:12.5px; color:var(--ink-soft); }
+
+  /* ---- "who are you" initials selector + highlighting ---- */
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    background:var(--panel); border:1px solid var(--line); border-radius:999px;
+    padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; color:var(--ink);
+  }
+  .chip:hover{ border-color:var(--ink-soft); }
+  .chip.active{ background:var(--amber); border-color:var(--amber-deep); color:var(--ink); }
+  .chip-clear{ font-family:'IBM Plex Sans',sans-serif; color:var(--ink-soft); }
+  table.vak-table td.hl-row{ background:rgba(242,169,59,0.16); }
+  mark.hl-me{ background:var(--amber); color:var(--ink); padding:0 3px; border-radius:3px; font-weight:700; }
+  mark.hl-allen{ background:#D8D4F5; color:#3F3877; padding:0 3px; border-radius:3px; font-weight:700; }
+
+</style>
+</head>
+<body>
+
+<div id="update-banner">
+  <span>Nieuwe versie van het rooster beschikbaar</span>
+  <button onclick="applyUpdate()">Vernieuwen</button>
+</div>
+
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== State ===================== */
+const DAYS = ['ma','di','wo','do','vr'];
+const DAY_LABELS = {ma:'Maandag', di:'Dinsdag', wo:'Woensdag', do:'Donderdag', vr:'Vrijdag'};
+const STATUS_LABELS = { huidig:'huidig', aankomend:'aankomend', gearchiveerd:'gearchiveerd' };
+const MONTHS_NL = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+
+const state = {
+  role: null,             // 'admin' | 'intern' | 'seh' | 'ortho'
+  adminWeekId: null,      // weekNumber currently open in the admin detail screen
+  viewerWeek: null,       // weekNumber currently selected by a viewer
+  showHistory: false,
+  newWeekFormOpen: false,
+  newWeekNumber: '',
+  newWeekStart: '',
+  myInitials: null,       // initials/name the viewer clicked on, to highlight in the table
+  weeks: {}               // { [weekNumber]: weekObject }
+};
+
+function makeEmptyWeek(weekNumber, startDate){
+  const ar = {};
+  DAYS.forEach(d => ar[d] = { ochtend:{naam:'',supervisor:''}, middag:{naam:'',supervisor:''} });
+  return {
+    weekNumber, startDate,
+    fileName: null, rawSheet: null, merges: [],
+    ar, vwaw: null, msk: null, vakgebieden: null, besprekingen: null,
+    published: false, version: 0
+  };
+}
+
+/* ===================== Date helpers ===================== */
+function mondayOf(date){
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function isoWeekNumber(d){
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+function formatDateRange(startISO){
+  const start = new Date(startISO + 'T00:00:00');
+  const end = new Date(start); end.setDate(end.getDate() + 6);
+  const sameMonth = start.getMonth() === end.getMonth();
+  if(sameMonth){
+    return `${start.getDate()} — ${end.getDate()} ${MONTHS_NL[end.getMonth()]} ${end.getFullYear()}`;
+  }
+  return `${start.getDate()} ${MONTHS_NL[start.getMonth()]} — ${end.getDate()} ${MONTHS_NL[end.getMonth()]} ${end.getFullYear()}`;
+}
+
+/* A week counts as "huidig" from its Monday until the following Monday 12:00,
+   at which point it automatically becomes "gearchiveerd" (moves to Historie). */
+function getStatus(week){
+  const now = new Date();
+  const start = new Date(week.startDate + 'T00:00:00');
+  const archiveThreshold = new Date(start);
+  archiveThreshold.setDate(archiveThreshold.getDate() + 7);
+  archiveThreshold.setHours(12,0,0,0);
+  if(now >= archiveThreshold) return 'gearchiveerd';
+  if(now < start) return 'aankomend';
+  return 'huidig';
+}
+
+function sortedWeeks(){
+  return Object.values(state.weeks).sort((a,b) => a.startDate.localeCompare(b.startDate));
+}
+function activeWeeks(){ return sortedWeeks().filter(w => getStatus(w) !== 'gearchiveerd'); }
+function archivedWeeks(){ return sortedWeeks().filter(w => getStatus(w) === 'gearchiveerd').reverse(); }
+
+function ensureViewerWeek(){
+  const active = activeWeeks();
+  const stillValid = state.viewerWeek && state.weeks[state.viewerWeek];
+  if(stillValid) return;
+  if(!active.length){ state.viewerWeek = null; return; }
+  const current = active.find(w => getStatus(w) === 'huidig');
+  state.viewerWeek = (current || active[0]).weekNumber;
+}
+
+/* ===================== Helpers ===================== */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = topbarHTML() + `<main>${state.role ? screenHTML() : roleSelectHTML()}</main>`;
+}
+
+const APP_LABEL = 'roosterapp-1 · tekstversie';
+
+function topbarHTML(){
+  if(!state.role) return '';
+  const roleNames = { admin:'Beheerder', intern:'Radioloog / AIOS', seh:'Extern rooster inzien', ortho:'Orthopedie — extern' };
+  return `
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <div>
+        <div class="brand-name">Weekrooster Radiologie <span class="badge-source">${APP_LABEL}</span></div>
+        <div class="brand-role">${roleNames[state.role]}</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn-ghost" onclick="goHome()">Wissel rol</button>
+    </div>
+  </div>`;
+}
+
+function statusBadge(week){
+  const s = getStatus(week);
+  return `<span class="week-pill-status status-${s}">${STATUS_LABELS[s]}</span>`;
+}
+
+function weekBoardHTML(week){
+  if(!week){
+    return `
+    <div class="week-board">
+      <div class="week-meta"><strong>Weekrooster</strong> <span class="badge-source">${APP_LABEL}</span><br>Deventer Ziekenhuis · Radiologie</div>
+    </div>`;
+  }
+  return `
+  <div class="week-board">
+    <div class="flap"><div class="num">${week.weekNumber}</div><div class="lbl">week</div></div>
+    <div class="week-meta"><strong>${formatDateRange(week.startDate)}</strong> ${statusBadge(week)}<br>Deventer Ziekenhuis · Radiologie</div>
+  </div>`;
+}
+
+/* ===================== Role select ===================== */
+function roleSelectHTML(){
+  return `
+  ${weekBoardHTML(null)}
+  <div class="section-head"><h2>Wie kijkt er mee?</h2></div>
+  <div class="role-grid">
+    <button class="role-card" onclick="selectRole('admin')">
+      <div class="role-tag tag-admin">Beheer</div>
+      <h3>Beheerder</h3>
+      <p>Upload weekroosters en bevestig de acute dienst (AR) per dagdeel.</p>
+    </button>
+    <button class="role-card" onclick="selectRole('intern')">
+      <div class="role-tag tag-intern">Intern</div>
+      <h3>Radioloog / AIOS</h3>
+      <p>Volledig rooster zoals geüpload — geen interpretatie, gewoon getoond.</p>
+    </button>
+    <button class="role-card" onclick="selectRole('seh')">
+      <div class="role-tag tag-extern-seh">Extern</div>
+      <h3>Extern rooster inzien</h3>
+      <p>Acute dienst en dienstrooster bovenaan, daaronder het volledige weekrooster.</p>
+    </button>
+  </div>`;
+}
+
+function selectRole(r){
+  state.role = r;
+  if(r === 'admin') state.adminWeekId = null;
+  else ensureViewerWeek();
+  render();
+}
+function goHome(){ state.role = null; state.adminWeekId = null; render(); }
+
+/* ===================== Router ===================== */
+function screenHTML(){
+  if(state.role === 'admin') return adminHTML();
+  if(state.role === 'intern') return internHTML();
+  if(state.role === 'seh') return sehHTML();
+  if(state.role === 'ortho') return orthoHTML();
+  return '';
+}
+
+/* ===================== Week selector (viewers) ===================== */
+function weekSelectorHTML(){
+  const active = activeWeeks();
+  const archived = archivedWeeks();
+  let html = '';
+  if(active.length){
+    html += `<div class="week-pills">
+      ${active.map(w => `
+        <button class="week-pill ${state.viewerWeek === w.weekNumber ? 'active':''}" onclick="selectViewerWeek(${w.weekNumber})">
+          Week ${w.weekNumber} ${statusBadge(w)}
+        </button>`).join('')}
+    </div>`;
+  }
+  if(archived.length){
+    html += `<div class="history-toggle">
+      <button class="btn-ghost" onclick="toggleHistory()">${state.showHistory ? 'Verberg historie' : 'Historie (' + archived.length + ')'}</button>
+    </div>`;
+    if(state.showHistory){
+      html += `<div class="week-pills history">
+        ${archived.map(w => `
+          <button class="week-pill ${state.viewerWeek === w.weekNumber ? 'active':''}" onclick="selectViewerWeek(${w.weekNumber})">
+            Week ${w.weekNumber} ${statusBadge(w)}
+          </button>`).join('')}
+      </div>`;
+    }
+  }
+  return html;
+}
+
+function selectViewerWeek(n){ state.viewerWeek = n; render(); }
+function toggleHistory(){ state.showHistory = !state.showHistory; render(); }
+
+/* ===================== Admin: week list ===================== */
+function adminHTML(){
+  if(state.adminWeekId && state.weeks[state.adminWeekId]){
+    return adminWeekDetailHTML(state.weeks[state.adminWeekId]);
+  }
+  return adminWeekListHTML();
+}
+
+function adminWeekListHTML(){
+  const active = sortedWeeks().filter(w => getStatus(w) !== 'gearchiveerd');
+  const archived = sortedWeeks().filter(w => getStatus(w) === 'gearchiveerd').reverse();
+
+  let html = weekBoardHTML(null);
+  html += `<div class="section-head"><h2>Weekroosters</h2></div>`;
+
+  if(active.length){
+    html += `<div class="week-list">${active.map(weekCardHTML).join('')}</div>`;
+  } else {
+    html += emptyState('Nog geen weken', 'Voeg de eerste week toe om te beginnen.');
+  }
+
+  html += newWeekFormHTML();
+
+  if(archived.length){
+    html += `
+    <div class="section" style="margin-top:32px;">
+      <div class="section-head"><h2>Historie</h2><span class="hint">automatisch gearchiveerd op maandag 12:00</span></div>
+      <div class="week-list">${archived.map(weekCardHTML).join('')}</div>
+    </div>`;
+  }
+  return html;
+}
+
+function weekCardHTML(w){
+  return `
+  <button class="week-card" onclick="openWeek(${w.weekNumber})">
+    <div class="week-card-num">Week ${w.weekNumber}</div>
+    <div class="week-card-range">${formatDateRange(w.startDate)}</div>
+    ${statusBadge(w)}
+    ${w.published ? `<span class="badge-source">gepubliceerd</span>` : `<span class="badge-source">concept</span>`}
+  </button>`;
+}
+
+function newWeekFormHTML(){
+  if(!state.newWeekFormOpen){
+    return `<div class="btn-row" style="justify-content:flex-start;margin-top:16px;">
+      <button class="btn-primary" onclick="openNewWeekForm()">+ Week toevoegen</button>
+    </div>`;
+  }
+  return `
+  <div class="card pad" style="margin-top:16px;">
+    <div class="grid2">
+      <div class="field">
+        <label>Weeknummer</label>
+        <input type="number" value="${state.newWeekNumber}" oninput="state.newWeekNumber=this.value">
+      </div>
+      <div class="field">
+        <label>Startdatum (maandag)</label>
+        <input type="date" value="${state.newWeekStart}" oninput="state.newWeekStart=this.value">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="cancelNewWeekForm()">Annuleren</button>
+      <button class="btn-primary" onclick="createWeek()">Aanmaken</button>
+    </div>
+  </div>`;
+}
+
+function openNewWeekForm(){
+  state.newWeekFormOpen = true;
+  const weeks = sortedWeeks();
+  if(weeks.length){
+    const last = weeks[weeks.length - 1];
+    const d = new Date(last.startDate + 'T00:00:00'); d.setDate(d.getDate() + 7);
+    state.newWeekNumber = last.weekNumber + 1;
+    state.newWeekStart = d.toISOString().slice(0,10);
+  } else {
+    const d = mondayOf(new Date());
+    state.newWeekNumber = isoWeekNumber(d);
+    state.newWeekStart = d.toISOString().slice(0,10);
+  }
+  render();
+}
+function cancelNewWeekForm(){ state.newWeekFormOpen = false; render(); }
+
+function createWeek(){
+  const num = parseInt(state.newWeekNumber, 10);
+  if(!num || !state.newWeekStart){ toast('Vul weeknummer en startdatum in'); return; }
+  if(state.weeks[num]){ toast('Week ' + num + ' bestaat al'); return; }
+  state.weeks[num] = makeEmptyWeek(num, state.newWeekStart);
+  state.newWeekFormOpen = false;
+  state.adminWeekId = num;
+  render();
+}
+
+function openWeek(n){ state.adminWeekId = n; render(); }
+function backToWeekList(){ state.adminWeekId = null; render(); }
+
+/* ===================== Admin: week detail ===================== */
+function adminWeekDetailHTML(week){
+  let html = weekBoardHTML(week);
+  html += `<div class="btn-row" style="justify-content:flex-start;margin-bottom:4px;">
+    <button class="btn-ghost" onclick="backToWeekList()">← Alle weken</button>
+  </div>`;
+
+  if(!week.rawSheet){
+    html += `
+    <div class="section">
+      <div class="section-head"><h2>Excel-rooster</h2><span class="hint">optioneel — mag ook later</span></div>
+      <label class="upload-zone">
+        <div class="upload-icon">📄</div>
+        <div style="font-weight:600;margin-bottom:4px;">Sleep het Excel-bestand hierheen of klik om te kiezen</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);">Wordt alleen in je browser verwerkt</div>
+        <input type="file" accept=".xlsx,.xls" onchange="handleUpload(event)">
+      </label>
+    </div>`;
+  } else {
+    html += `
+    <div class="section">
+      <div class="section-head">
+        <h2>Excel-rooster</h2>
+        <span class="badge-source">${week.fileName}</span>
+      </div>
+      <div class="btn-row" style="justify-content:flex-start;margin-top:0;">
+        <button class="btn-ghost" onclick="resetUpload()">Ander bestand</button>
+      </div>
+    </div>`;
+  }
+
+  html += `
+  <div class="section">
+    <div class="section-head">
+      <h2>Bevestig de acute dienst (AR)</h2>
+      <span class="hint">optioneel — mag ook later</span>
+    </div>
+    <div class="card">
+      ${DAYS.map(d => dayFormBlock(week, d)).join('')}
+    </div>
+  </div>`;
+
+  if(week.vwaw){
+    html += `
+    <div class="section">
+      <div class="section-head"><h2>Voor-/achterwacht — automatisch herkend</h2><span class="hint">controleer even</span></div>
+      <div class="card pad">
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">&nbsp;</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;">${DAY_LABELS[d]}</div>`).join('')}
+        </div>
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">Voorwacht</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.vw || '—'}</div>`).join('')}
+        </div>
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">Achterwacht</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.aw || '—'}</div>`).join('')}
+        </div>
+        ${week.vwaw.weekend && week.vwaw.weekend.length ? `
+        <div style="padding:14px 16px 0;">
+          <div style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Weekend</div>
+          <div class="weekend-strip">
+            ${week.vwaw.weekend.map(w=>`<div class="weekend-item"><b>${w.label}</b>${w.value}</div>`).join('')}
+          </div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  } else if(week.rawSheet){
+    html += `
+    <div class="section">
+      <div class="card pad">
+        <span class="hint">Voor-/achterwachtschema niet automatisch gevonden in dit bestand — dat is niet erg, de interne viewer toont sowieso het hele rooster.</span>
+      </div>
+    </div>`;
+  }
+
+  if(week.msk){
+    html += `
+    <div class="section">
+      <div class="section-head"><h2>MSK — automatisch herkend</h2></div>
+      <div class="card pad">
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">&nbsp;</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;">${DAY_LABELS[d]}</div>`).join('')}
+        </div>
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">MSK</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.msk[d]?.msk || '—'}</div>`).join('')}
+        </div>
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">Echo MSK</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.msk[d]?.echoMsk || '—'}</div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  html += `
+  <div class="btn-row">
+    <button class="btn-primary" onclick="publish()">Publiceer week ${week.weekNumber}</button>
+  </div>`;
+
+  if(week.published){
+    html += `<div class="section"><div class="card pad" style="border-color:var(--teal-deep);">
+      <strong style="color:var(--teal-deep);">Gepubliceerd</strong> — versie ${week.version} is nu zichtbaar voor SEH, orthopedie en interne viewers.
+    </div></div>`;
+  }
+
+  return html;
+}
+
+function dayFormBlock(week, d){
+  const a = week.ar[d];
+  return `
+  <div class="day-form-block">
+    <div class="day-form-title">${DAY_LABELS[d]}</div>
+    <div class="grid2">
+      <div>
+        <div class="field">
+          <label>AR ochtend</label>
+          <input type="text" placeholder="Naam" value="${a.ochtend.naam}" oninput="updateAR('${d}','ochtend','naam',this.value)">
+        </div>
+        <div class="field">
+          <label>Supervisor (optioneel)</label>
+          <input type="text" placeholder="Alleen als AIOS supervisie heeft" value="${a.ochtend.supervisor}" oninput="updateAR('${d}','ochtend','supervisor',this.value)">
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label>AR middag</label>
+          <input type="text" placeholder="Naam" value="${a.middag.naam}" oninput="updateAR('${d}','middag','naam',this.value)">
+        </div>
+        <div class="field">
+          <label>Supervisor (optioneel)</label>
+          <input type="text" placeholder="Alleen als AIOS supervisie heeft" value="${a.middag.supervisor}" oninput="updateAR('${d}','middag','supervisor',this.value)">
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateAR(day, part, field, value){
+  state.weeks[state.adminWeekId].ar[day][part][field] = value;
+}
+
+function publish(){
+  const week = state.weeks[state.adminWeekId];
+  week.published = true;
+  week.version += 1;
+  toast('Gepubliceerd voor week ' + week.weekNumber);
+  render();
+}
+
+function resetUpload(){
+  const week = state.weeks[state.adminWeekId];
+  week.rawSheet = null; week.fileName = null; week.merges = [];
+  week.vwaw = null; week.msk = null; week.vakgebieden = null; week.besprekingen = null;
+  render();
+}
+
+/* ===================== Upload + parsing ===================== */
+function handleUpload(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const week = state.weeks[state.adminWeekId];
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const data = new Uint8Array(e.target.result);
+    const wb = XLSX.read(data, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const grid = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', raw:false});
+    week.rawSheet = grid;
+    week.merges = sheet['!merges'] || [];
+    week.fileName = file.name;
+    detectVWAW(week, grid);
+    detectMSK(week, grid);
+    detectVakgebieden(week, grid);
+    detectBesprekingen(week, grid);
+    const arFound = applyDetectedAR(week, grid);
+    toast(arFound ? 'Bestand geladen — AR-suggesties ingevuld, controleer hieronder' : 'Bestand geladen — controleer hieronder');
+    render();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function cellStr(v){ return (v===undefined||v===null) ? '' : String(v).trim(); }
+
+function besprekingenTableHTML(week){
+  if(!week.besprekingen) return '';
+  const rows = week.besprekingen.map(item => {
+    if(item.type === 'header'){
+      return `<tr class="vak-section-row"><td colspan="4">${item.label}</td></tr>`;
+    }
+    return `
+      <tr>
+        <td class="vak-row-label">${item.naam}</td>
+        <td>${item.freq || '—'}</td>
+        <td>${item.tijd || '—'}</td>
+        ${renderCell(item.wie)}
+      </tr>`;
+  }).join('');
+
+  return `
+  <div class="section">
+    <div class="section-head"><h2>Besprekingen — overzicht</h2><span class="hint">highlightbaar</span></div>
+    <div class="raw-wrap">
+      <table class="vak-table">
+        <thead>
+          <tr>
+            <th>Overleg</th><th>Frequentie</th><th>Tijd</th><th>Wie</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function detectVWAW(week, grid){
+  // Look for a row whose cells include "Dienst" followed by Ma/Di/Wo/Do header, then vw/aw rows beneath
+  for(let r=0; r<grid.length; r++){
+    const row = grid[r];
+    const idx = row.findIndex(c => cellStr(c).toLowerCase() === 'dienst');
+    if(idx === -1) continue;
+    const cols = [idx+1, idx+2, idx+3, idx+4, idx+5];
+    const result = {};
+    for(let rr = r+1; rr < Math.min(r+6, grid.length); rr++){
+      const label = cellStr(grid[rr][idx]).toLowerCase();
+      if(label === 'vw' || label === 'aw'){
+        DAYS.forEach((d,i)=>{
+          result[d] = result[d] || {};
+          result[d][label] = cellStr(grid[rr][cols[i]]) || '—';
+        });
+      }
+    }
+    if(Object.keys(result).length){
+      week.vwaw = result;
+      const weekend = [];
+      for(let rr=r; rr<Math.min(r+30, grid.length); rr++){
+        for(let cc=0; cc<grid[rr].length; cc++){
+          const t = cellStr(grid[rr][cc]);
+          if(/voorwacht|achterwacht/i.test(t) && /u:/.test(t)){
+            const rest = grid[rr].slice(cc+1).map(cellStr).filter(Boolean);
+            weekend.push({label:t, value: rest[0] || ''});
+          }
+        }
+      }
+      if(weekend.length) week.vwaw.weekend = weekend;
+      return;
+    }
+  }
+  week.vwaw = null;
+}
+
+function stripARTag(v){ return v.replace(/\s*\(AR\)\s*$/i, '').trim(); }
+
+function detectVakgebieden(week, grid){
+  const WEEKDAY_RE = /^(ma|di|woe|wo|do|vr)$/i; // exact match only — a loose prefix match would wrongly catch words like "Mammo"
+  let header = ['Ma','Di','Wo','Do','Vr'];
+  for(let r=0; r<Math.min(grid.length,10); r++){
+    const cells = [1,2,3,4,5].map(c => cellStr(grid[r][c]));
+    if(cells.every(c => c && WEEKDAY_RE.test(c))){ header = cells; break; }
+  }
+
+  const sections = [];
+  let current = null;
+  for(let r=0; r<grid.length; r++){
+    const row = grid[r] || [];
+    const a = cellStr(row[0]);
+    const b = stripARTag(cellStr(row[1]));
+    const c = stripARTag(cellStr(row[2]));
+    const d = stripARTag(cellStr(row[3]));
+    const e = stripARTag(cellStr(row[4]));
+    const f = stripARTag(cellStr(row[5]));
+    const g = cellStr(row[6]).toLowerCase();
+
+    if(a === 'Stages') break;
+
+    const isWeekdayHeaderRow = [b,c,d,e,f].every(v => v && WEEKDAY_RE.test(v));
+    if(isWeekdayHeaderRow) continue;
+
+    // A section header has only column B filled — but a "supervisie" note that
+    // only applies on Monday has the exact same shape, so exclude those explicitly.
+    const isSectionHeader = (a==='' && b!=='' && c==='' && d==='' && e==='' && f==='' && !WEEKDAY_RE.test(b) && g !== 'supervisie');
+    if(isSectionHeader){
+      current = { name: b, rows: [] };
+      sections.push(current);
+      continue;
+    }
+    const isFullyEmpty = (a==='' && b==='' && c==='' && d==='' && e==='' && f==='');
+    if(isFullyEmpty) continue;
+    if(!current) continue;
+
+    const label = a || (g === 'supervisie' ? 'supervisie' : '');
+    current.rows.push({ label, days: [b,c,d,e,f] });
+  }
+  const cleanSections = sections.filter(s => s.rows.length > 0);
+  week.vakgebieden = cleanSections.length ? { header, sections: cleanSections } : null;
+}
+
+function detectMSK(week, grid){
+  const result = {};
+  let found = false;
+  for(let r=0; r<grid.length; r++){
+    const row = grid[r];
+    for(let c=0; c<Math.min(row.length,3); c++){
+      const label = cellStr(row[c]).toLowerCase();
+      if(label === 'msk' || label === 'echo msk'){
+        found = true;
+        DAYS.forEach((d,i)=>{
+          result[d] = result[d] || {};
+          const val = cellStr(row[c+1+i]);
+          if(label === 'msk') result[d].msk = val || '—';
+          else result[d].echoMsk = val || '—';
+        });
+      }
+    }
+  }
+  week.msk = found ? result : null;
+}
+
+function detectBesprekingen(week, grid){
+  const find = (predicate) => {
+    for(let r=0; r<grid.length; r++){
+      const row = grid[r] || [];
+      for(let c=0; c<row.length; c++){
+        if(predicate(cellStr(row[c]), r, c)) return { r, c };
+      }
+    }
+    return null;
+  };
+
+  const anchor = find(v => v.toLowerCase() === 'besprekingen');
+  if(!anchor){ week.besprekingen = null; return; }
+
+  const c = anchor.c; // naam=c, (c+1,c+2 unused), frequentie=c+3, tijd=c+4, wie=c+5
+  let endRow = grid.length;
+  for(let r=anchor.r+1; r<grid.length; r++){
+    if(cellStr(grid[r][c]).toLowerCase().startsWith('vergaderingen')){ endRow = r; break; }
+  }
+
+  const items = [];
+  for(let r=anchor.r+1; r<endRow; r++){
+    const row = grid[r] || [];
+    const naam = cellStr(row[c]);
+    const freq = cellStr(row[c+3]);
+    const tijd = cellStr(row[c+4]);
+    const wie = cellStr(row[c+5]);
+    if(!naam && !freq && !tijd && !wie) continue; // blank separator row
+    if(naam && !freq && !tijd && !wie){ items.push({ type:'header', label: naam }); continue; }
+    items.push({ type:'row', naam, freq, tijd, wie });
+  }
+  week.besprekingen = items.length ? items : null;
+}
+
+/* ===================== AR auto-detection ===================== */
+// Two patterns seen in these files:
+//  1. Inline: a name followed by "(AR)" inside a normal mo/mi cell, e.g. "WH (AR)"
+//  2. A freeform note below a standalone "AR" header cell, e.g. "vr middag AR TB"
+// When a match doesn't distinguish ochtend/middag, it's applied to both (per the radiologist's own rule).
+function detectAR(grid){
+  const WEEKDAY_RE = /^(ma|di|woe|wo|do|vr)$/i;
+  const suggestions = {};
+  DAYS.forEach(d => suggestions[d] = { ochtend:{naam:null,supervisor:null}, middag:{naam:null,supervisor:null} });
+  const setSuggestion = (day, part, naam, supervisor) => {
+    if(!naam) return;
+    const apply = (slot) => {
+      suggestions[day][slot].naam = suggestions[day][slot].naam || naam;
+      if(supervisor) suggestions[day][slot].supervisor = suggestions[day][slot].supervisor || supervisor;
+    };
+    if(part === 'ochtend' || part === 'both') apply('ochtend');
+    if(part === 'middag' || part === 'both') apply('middag');
+  };
+  const normalizeDay = (raw) => {
+    let day = raw.toLowerCase();
+    if(day === 'woe') day = 'wo';
+    return WEEKDAY_RE.test(day) ? day : null;
+  };
+
+  // --- Pattern 1: inline "(AR)" within the modaliteiten day-columns (col1..col5 = Ma..Vr) ---
+  for(let r=0; r<grid.length; r++){
+    const row = grid[r] || [];
+    if(cellStr(row[0]) === 'Stages') break;
+    const label = cellStr(row[0]).toLowerCase();
+    for(let i=0; i<5; i++){
+      const cellVal = cellStr(row[i+1]);
+      const m = cellVal.match(/^(.*?)\s*\(AR\)\s*$/i);
+      if(!m) continue;
+      const naam = m[1].trim();
+      if(!naam) continue;
+      const day = DAYS[i];
+      if(label === 'mo') setSuggestion(day, 'ochtend', naam);
+      else if(label === 'mi') setSuggestion(day, 'middag', naam);
+      else setSuggestion(day, 'both', naam); // row doesn't distinguish ochtend/middag
+    }
+  }
+
+  // --- Pattern 2: freeform lines below a standalone "AR" header cell ---
+  // Two shapes seen in these files:
+  //  a) "<dag> [dagdeel] <naam> sv <supervisor(s)>"  — e.g. "ma CT sv Zo/HZ" (Zo=ochtend-sv, HZ=middag-sv)
+  //     "wo middag CT sv TB"  — a single dagdeel, so TB is that dagdeel's supervisor
+  //  b) "<dag> <dagdeel> AR <naam>"  — e.g. "vr middag AR TB" (no supervisor mentioned)
+  const svRe = /^(ma|di|woe|wo|do|vr)\s*(ochtend|middag)?\s+(\S+)\s+sv\s+(.+)$/i;
+  const arRe = /^(ma|di|woe|wo|do|vr)\s+(ochtend|middag)\s+AR\s+(.+)$/i;
+
+  for(let r=0; r<grid.length; r++){
+    const row = grid[r] || [];
+    for(let c=0; c<row.length; c++){
+      if(cellStr(row[c]).toUpperCase() !== 'AR') continue;
+      for(let rr=r+1; rr<grid.length; rr++){
+        const text = cellStr((grid[rr] || [])[c]);
+        if(!text) break; // blank line ends the note block
+
+        const svMatch = text.match(svRe);
+        if(svMatch){
+          const day = normalizeDay(svMatch[1]);
+          const dagdeel = svMatch[2] ? svMatch[2].toLowerCase() : null;
+          const naam = svMatch[3].trim();
+          const supervisorSpec = svMatch[4].trim();
+          if(!day || !naam) continue;
+          if(dagdeel){
+            setSuggestion(day, dagdeel, naam, supervisorSpec);
+          } else {
+            const parts = supervisorSpec.split('/').map(p => p.trim()).filter(Boolean);
+            if(parts.length === 2){
+              setSuggestion(day, 'ochtend', naam, parts[0]);
+              setSuggestion(day, 'middag', naam, parts[1]);
+            } else {
+              setSuggestion(day, 'both', naam, supervisorSpec);
+            }
+          }
+          continue;
+        }
+
+        const arMatch = text.match(arRe);
+        if(arMatch){
+          const day = normalizeDay(arMatch[1]);
+          const dagdeel = arMatch[2].toLowerCase();
+          const naam = arMatch[3].trim();
+          if(day && naam) setSuggestion(day, dagdeel, naam);
+        }
+      }
+    }
+  }
+
+  return suggestions;
+}
+
+// Fills in only the AR fields the admin hasn't already typed something into.
+function applyDetectedAR(week, grid){
+  const suggestions = detectAR(grid);
+  let filledAny = false;
+  DAYS.forEach(d => {
+    ['ochtend','middag'].forEach(part => {
+      const slot = week.ar[d][part];
+      const suggestion = suggestions[d][part];
+      if(!slot.naam && suggestion.naam){ slot.naam = suggestion.naam; filledAny = true; }
+      if(!slot.supervisor && suggestion.supervisor){ slot.supervisor = suggestion.supervisor; filledAny = true; }
+    });
+    // If no AR name was found for the middag, whoever has achterwacht that day covers it.
+    const middag = week.ar[d].middag;
+    const aw = week.vwaw && week.vwaw[d] ? week.vwaw[d].aw : null;
+    if(!middag.naam && aw && aw !== '—'){
+      middag.naam = aw;
+      filledAny = true;
+    }
+  });
+  return filledAny;
+}
+
+/* ===================== Intern viewer ===================== */
+let showRawFallback = false;
+
+function formatARSlot(slot){
+  if(!slot || !slot.naam) return '—';
+  return slot.supervisor ? `${slot.naam} (${slot.supervisor})` : slot.naam;
+}
+
+function buildAcuteSection(week){
+  return {
+    name: 'Acute',
+    rows: [
+      { label:'mo', days: DAYS.map(d => formatARSlot(week.ar[d].ochtend)) },
+      { label:'mi', days: DAYS.map(d => formatARSlot(week.ar[d].middag)) }
+    ]
+  };
+}
+
+// Placeholder layout so the full weekrooster is always visible, even before a file
+// is uploaded — once real data is parsed, that replaces this entirely.
+const DEFAULT_VAKGEBIEDEN_TEMPLATE = [
+  { name:'Echo algemeen', rows:[
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] },
+    { label:'echo msk', days:['','','','',''] },
+    { label:'supervisie', days:['','','','',''] }
+  ]},
+  { name:'Abdomen', rows:[
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] }
+  ]},
+  { name:'MSK', rows:[
+    { label:'seh', days:['','','','',''] },
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] },
+    { label:'supervisie', days:['','','','',''] }
+  ]},
+  { name:'Thorax', rows:[
+    { label:'IC', days:['','','','',''] },
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] }
+  ]},
+  { name:'Neuro', rows:[
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] },
+    { label:'supervisie', days:['','','','',''] }
+  ]},
+  { name:'Mammo', rows:[
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] }
+  ]},
+  { name:'Interventie', rows:[
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] },
+    { label:'supervisie', days:['','','','',''] }
+  ]},
+  { name:'Cardio', rows:[
+    { label:'mo', days:['','','','',''] },
+    { label:'mi', days:['','','','',''] }
+  ]}
+];
+
+function weekTableHTML(week, opts){
+  opts = opts || {};
+  const headerLabels = week.vakgebieden ? week.vakgebieden.header : ['Ma','Di','Wo','Do','Vr'];
+  const sections = [buildAcuteSection(week)].concat(week.vakgebieden ? week.vakgebieden.sections : DEFAULT_VAKGEBIEDEN_TEMPLATE);
+
+  allenAllowedDays = new Set();
+  if(state.myInitials){
+    for(let d=0; d<5; d++){
+      if(hasOtherFunctionThatDay(sections, d, state.myInitials)) allenAllowedDays.add(d);
+    }
+  }
+
+  let html = '';
+  if(opts.showMeSelector) html += meSelectorHTML(week);
+
+  html += `
+  <div class="section">
+    <div class="section-head"><h2>Volledig weekrooster</h2><span class="hint">versie ${week.version}</span></div>
+    <div class="raw-wrap">
+      <table class="vak-table">
+        <thead>
+          <tr>
+            <th class="vak-corner"></th>
+            ${headerLabels.map(h => `<th>${h}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${sections.map(sectionHTML).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${week.rawSheet ? `<div style="margin-top:10px;"><button class="btn-ghost" onclick="toggleRaw()">${showRawFallback ? 'Verberg ruwe data' : 'Toon ruwe data (vangnet)'}</button></div>` : ''}
+  </div>`;
+
+  if(!week.rawSheet){
+    html += `
+    <div class="section">
+      <div class="card pad">
+        <span class="hint">Dit is de standaardindeling, nog zonder gegevens — upload het Excel-bestand van deze week om de echte namen te tonen.</span>
+      </div>
+    </div>`;
+  } else if(!week.vakgebieden || showRawFallback){
+    html += `
+    <div class="section">
+      <div class="section-head"><h2>${week.vakgebieden ? 'Ruwe data' : 'Volledig weekrooster'}</h2><span class="hint">zoals geüpload</span></div>
+      <div class="raw-wrap">
+        <table class="raw">
+          ${week.rawSheet.map(row => `<tr>${row.map(c=>`<td>${cellStr(c)}</td>`).join('')}</tr>`).join('')}
+        </table>
+      </div>
+    </div>`;
+  }
+
+  if(week.besprekingen){
+    html += besprekingenTableHTML(week);
+  }
+
+  return html;
+}
+
+function internHTML(){
+  ensureViewerWeek();
+  const week = state.viewerWeek ? state.weeks[state.viewerWeek] : null;
+  let html = weekBoardHTML(week) + weekSelectorHTML();
+
+  if(!week){
+    html += emptyState('Nog geen weekrooster', 'Zodra de beheerder een week publiceert, verschijnt die hier.');
+    return html;
+  }
+  if(!week.published){
+    html += emptyState('Nog niet gepubliceerd', 'Deze week is aangemaakt maar nog niet gepubliceerd door de beheerder.');
+    return html;
+  }
+
+  html += weekTableHTML(week, { showMeSelector: true });
+
+  return html;
+}
+
+function mergeSupervisieIntoRows(rows){
+  const supRow = rows.find(r => (r.label || '').toLowerCase() === 'supervisie');
+  const mainRows = rows
+    .filter(r => (r.label || '').toLowerCase() !== 'supervisie')
+    .map(r => ({ label: r.label, days: r.days.slice() }));
+  if(!supRow || !mainRows.length) return mainRows;
+
+  // "seh" is the daily 08:00 SEH-bespreking — an ochtend slot, just like "mo".
+  const ochtendRows = mainRows.filter(r => ['mo','seh'].includes((r.label || '').toLowerCase()));
+  const middagRows = mainRows.filter(r => (r.label || '').toLowerCase() === 'mi');
+
+  for(let i=0; i<5; i++){
+    const sup = supRow.days[i];
+    if(!sup) continue;
+
+    // "W/Zo" means W supervises the ochtend slot(s) and Zo the middag slot —
+    // a split value is never one combined supervisor for the whole day.
+    const parts = sup.split('/').map(p => p.trim()).filter(Boolean);
+    if(parts.length === 2 && ochtendRows.length && middagRows.length){
+      ochtendRows.forEach(r => { r.days[i] = r.days[i] ? `${r.days[i]} (${parts[0]})` : parts[0]; });
+      middagRows.forEach(r => { r.days[i] = r.days[i] ? `${r.days[i]} (${parts[1]})` : parts[1]; });
+      continue;
+    }
+
+    const anyFilled = mainRows.some(r => r.days[i]);
+    if(anyFilled){
+      // attach the supervisor in parentheses to whichever row(s) already have a name that day
+      mainRows.forEach(r => { if(r.days[i]) r.days[i] = `${r.days[i]} (${sup})`; });
+    } else {
+      // no AIOS recorded that day — a radioloog is doing it directly, show the name plain
+      mainRows[mainRows.length - 1].days[i] = sup;
+    }
+  }
+  return mainRows;
+}
+
+function sectionHTML(section){
+  const rows = mergeSupervisieIntoRows(section.rows);
+  return `
+    <tr class="vak-section-row"><td colspan="6">${section.name}</td></tr>
+    ${rows.map(row => `
+      <tr>
+        <td class="vak-row-label">${row.label || ''}</td>
+        ${row.days.map((v,i) => renderCell(v,i)).join('')}
+      </tr>
+    `).join('')}
+  `;
+}
+
+function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+let allenAllowedDays = new Set();
+
+// "allen" only means something for you on a given day if you actually have some
+// other task recorded that day too — otherwise it just means you're not in that day.
+function hasOtherFunctionThatDay(sections, dayIndex, initials){
+  const re = new RegExp(`\\b${escapeRegExp(initials)}\\b`);
+  for(const section of sections){
+    const rows = mergeSupervisieIntoRows(section.rows);
+    for(const row of rows){
+      const cell = row.days[dayIndex];
+      if(!cell) continue;
+      if(cell.trim().toLowerCase() === 'allen') continue; // a bare "allen" cell isn't itself "another function"
+      if(re.test(cell)) return true;
+    }
+  }
+  return false;
+}
+
+function renderCell(v, dayIndex){
+  const text = v || '—';
+  if(!state.myInitials || text === '—') return `<td>${text}</td>`;
+
+  const meRe = new RegExp(`\\b(${escapeRegExp(state.myInitials)})\\b`, 'g');
+  const hasMe = meRe.test(text);
+  const allenAllowed = typeof dayIndex === 'number' && allenAllowedDays.has(dayIndex);
+  const allenRe = /\ballen\b/gi;
+  const hasAllen = allenAllowed && allenRe.test(text);
+  if(!hasMe && !hasAllen) return `<td>${text}</td>`;
+
+  let highlighted = text.replace(new RegExp(`\\b(${escapeRegExp(state.myInitials)})\\b`, 'g'), '<mark class="hl-me">$1</mark>');
+  if(hasAllen){
+    highlighted = highlighted.replace(/\ballen\b/gi, '<mark class="hl-allen">$&</mark>');
+  }
+  return `<td class="hl-row">${highlighted}</td>`;
+}
+
+const NAME_STOPWORDS = new Set(['x','allen','tot','na','uur','svv','gaat','niet','door','supervisie','week']);
+
+function collectInitials(week){
+  const texts = [];
+  DAYS.forEach(d => {
+    texts.push(week.ar[d].ochtend.naam, week.ar[d].ochtend.supervisor, week.ar[d].middag.naam, week.ar[d].middag.supervisor);
+  });
+  if(week.vakgebieden){
+    week.vakgebieden.sections.forEach(sec => sec.rows.forEach(r => r.days.forEach(d => texts.push(d))));
+  }
+  if(week.vwaw){
+    DAYS.forEach(d => { texts.push(week.vwaw[d]?.vw, week.vwaw[d]?.aw); });
+  }
+  if(week.msk){
+    DAYS.forEach(d => { texts.push(week.msk[d]?.msk, week.msk[d]?.echoMsk); });
+  }
+  if(week.besprekingen){
+    week.besprekingen.forEach(item => { if(item.type === 'row') texts.push(item.wie); });
+  }
+
+  const tokens = new Set();
+  texts.filter(Boolean).forEach(t => {
+    String(t).split(/[^A-Za-zÀ-ÖØ-öø-ÿ]+/).forEach(tok => {
+      const clean = tok.trim();
+      if(!clean || clean.length > 10) return;
+      if(NAME_STOPWORDS.has(clean.toLowerCase())) return;
+      if(!/[A-Z]/.test(clean)) return; // initials/names in this rooster always contain an uppercase letter
+      tokens.add(clean);
+    });
+  });
+  return Array.from(tokens).sort((a,b) => a.localeCompare(b, 'nl'));
+}
+
+function meSelectorHTML(week){
+  const initials = collectInitials(week);
+  if(!initials.length) return '';
+  return `
+  <div class="section">
+    <div class="section-head"><h2>Wie ben jij?</h2><span class="hint">klik je initialen aan om ze te markeren</span></div>
+    <div class="chip-row">
+      ${initials.map(i => `<button class="chip ${state.myInitials === i ? 'active' : ''}" onclick="selectMyInitials('${i.replace(/'/g, "\\'")}')">${i}</button>`).join('')}
+      ${state.myInitials ? `<button class="chip chip-clear" onclick="selectMyInitials(null)">Wissen</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function selectMyInitials(i){
+  state.myInitials = (state.myInitials === i) ? null : i;
+  render();
+}
+
+function toggleRaw(){ showRawFallback = !showRawFallback; render(); }
+
+/* ===================== SEH viewer ===================== */
+function sehHTML(){
+  ensureViewerWeek();
+  const week = state.viewerWeek ? state.weeks[state.viewerWeek] : null;
+  let html = weekBoardHTML(week) + weekSelectorHTML();
+
+  if(!week){
+    html += emptyState('Nog geen weekrooster', 'Het AR- en voor-/achterwachtschema verschijnt hier zodra de beheerder een week publiceert.');
+    return html;
+  }
+  if(!week.published){
+    html += emptyState('Nog niet gepubliceerd', 'Deze week is aangemaakt maar nog niet gepubliceerd door de beheerder.');
+    return html;
+  }
+
+  html += `
+  <div class="section">
+    <div class="section-head"><h2>Acute dienst (AR)</h2><span class="hint">versie ${week.version}</span></div>
+    <div class="card">
+      ${DAYS.map(d => {
+        const a = week.ar[d];
+        return `
+        <div class="day-row">
+          <div class="day-label">${DAY_LABELS[d]}</div>
+          <div>
+            <div class="slot-label">Ochtend</div>
+            <div class="slot-name">${a.ochtend.naam || '—'}${a.ochtend.supervisor ? `<span class="pill">svv ${a.ochtend.supervisor}</span>`:''}</div>
+          </div>
+          <div>
+            <div class="slot-label">Middag</div>
+            <div class="slot-name">${a.middag.naam || '—'}${a.middag.supervisor ? `<span class="pill">svv ${a.middag.supervisor}</span>`:''}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  if(week.vwaw){
+    html += `
+    <div class="section">
+      <div class="section-head"><h2>Voor-/achterwacht</h2></div>
+      <div class="card pad">
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">&nbsp;</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;">${DAY_LABELS[d]}</div>`).join('')}
+        </div>
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">Voorwacht</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.vw || '—'}</div>`).join('')}
+        </div>
+        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
+          <div class="day-label">Achterwacht</div>
+          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.aw || '—'}</div>`).join('')}
+        </div>
+        ${week.vwaw.weekend && week.vwaw.weekend.length ? `
+        <div style="padding:14px 16px 4px;">
+          <div style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Weekend</div>
+          <div class="weekend-strip">
+            ${week.vwaw.weekend.map(w=>`<div class="weekend-item"><b>${w.label}</b>${w.value}</div>`).join('')}
+          </div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  html += weekTableHTML(week, { showMeSelector: false });
+  return html;
+}
+
+/* ===================== Orthopedie viewer ===================== */
+function orthoHTML(){
+  ensureViewerWeek();
+  const week = state.viewerWeek ? state.weeks[state.viewerWeek] : null;
+  let html = weekBoardHTML(week) + weekSelectorHTML();
+
+  if(!week){
+    html += emptyState('Nog geen weekrooster', 'Het MSK-schema verschijnt hier zodra de beheerder een week publiceert.');
+    return html;
+  }
+  if(!week.published){
+    html += emptyState('Nog niet gepubliceerd', 'Deze week is aangemaakt maar nog niet gepubliceerd door de beheerder.');
+    return html;
+  }
+  if(!week.msk){
+    html += emptyState('MSK niet gevonden', 'De MSK-regels konden niet automatisch herkend worden in het geüploade bestand van deze week.');
+    return html;
+  }
+
+  html += `
+  <div class="section">
+    <div class="section-head"><h2>MSK deze week</h2><span class="hint">versie ${week.version}</span></div>
+    <div class="card">
+      ${DAYS.map(d => {
+        const m = week.msk[d] || {};
+        return `
+        <div class="day-row">
+          <div class="day-label">${DAY_LABELS[d]}</div>
+          <div><div class="slot-label">MSK</div><div class="slot-name">${m.msk || '—'}</div></div>
+          <div><div class="slot-label">Echo MSK</div><div class="slot-name">${m.echoMsk || '—'}</div></div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+  return html;
+}
+
+/* ===================== Shared ===================== */
+function emptyState(title, sub){
+  return `<div class="section"><div class="card empty">
+    <div class="glyph">🗂️</div>
+    <div style="font-weight:600;color:var(--ink);margin-bottom:4px;">${title}</div>
+    <div style="font-size:13.5px;">${sub}</div>
+  </div></div>`;
+}
+
+/* ===================== Update banner (simulated) ===================== */
+function applyUpdate(){
+  document.getElementById('update-banner').classList.remove('show');
+  toast('Rooster bijgewerkt');
+  render();
+}
+
+// Demo hook: simulate a new version arriving (in production this would be a real check against the backend)
+window.simulateNewVersion = function(){
+  document.getElementById('update-banner').classList.add('show');
+};
+
+/* ===================== PWA install ===================== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* ok if hosting blocks this in prototype view */ });
+  });
+}
+
+render();
+
+</script>
+</body>
+</html>
