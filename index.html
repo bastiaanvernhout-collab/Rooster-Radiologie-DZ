@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --ink:#12213D;
@@ -274,8 +275,78 @@ const state = {
   newWeekNumber: '',
   newWeekStart: '',
   myInitials: null,       // initials/name the viewer clicked on, to highlight in the table
-  weeks: {}               // { [weekNumber]: weekObject }
+  weeks: {},              // { [weekNumber]: weekObject }
+  loading: true,
+  loadError: null
 };
+
+/* ===================== Supabase (shared storage) ===================== */
+const SUPABASE_URL = 'https://tyvnsadoutyheanzfvry.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_IKMu81Bs0UZm361MQWzgIA_M_g3Q27i';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let pendingWeeks = {}; // weekNumber -> newer week data waiting for the user to click "Vernieuwen"
+
+async function loadWeeksFromSupabase(){
+  try{
+    const { data, error } = await supabaseClient.from('weeks').select('week_number, data');
+    if(error) throw error;
+    data.forEach(row => { state.weeks[row.week_number] = row.data; });
+    state.loadError = null;
+  } catch(err){
+    console.error('Supabase load failed', err);
+    state.loadError = 'Kon het rooster niet laden — controleer je internetverbinding en vernieuw de pagina.';
+  }
+  state.loading = false;
+  ensureViewerWeek();
+  render();
+}
+
+async function saveWeekToSupabase(week){
+  try{
+    const { error } = await supabaseClient.from('weeks').upsert({
+      week_number: week.weekNumber,
+      data: week,
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+  } catch(err){
+    console.error('Supabase save failed', err);
+    toast('Publiceren naar de server is mislukt — controleer je internetverbinding en probeer opnieuw');
+  }
+}
+
+async function pollForUpdates(){
+  try{
+    const { data, error } = await supabaseClient.from('weeks').select('week_number, data');
+    if(error) throw error;
+    let bannerNeeded = false;
+    data.forEach(row => {
+      const num = row.week_number;
+      const serverWeek = row.data;
+      const localWeek = state.weeks[num];
+      const isActive = (num === state.adminWeekId) || (num === state.viewerWeek);
+      if(!localWeek){
+        state.weeks[num] = serverWeek;
+        return;
+      }
+      if(serverWeek.version > localWeek.version){
+        if(isActive){
+          pendingWeeks[num] = serverWeek;
+          bannerNeeded = true;
+        } else {
+          state.weeks[num] = serverWeek;
+        }
+      }
+    });
+    if(bannerNeeded){
+      document.getElementById('update-banner').classList.add('show');
+    }
+    render();
+  } catch(err){
+    console.error('Supabase poll failed', err);
+  }
+}
 
 function makeEmptyWeek(weekNumber, startDate){
   const ar = {};
@@ -718,6 +789,7 @@ function publish(){
   week.published = true;
   week.version += 1;
   toast('Gepubliceerd voor week ' + week.weekNumber);
+  saveWeekToSupabase(week);
   render();
 }
 
@@ -1434,17 +1506,18 @@ function emptyState(title, sub){
   </div></div>`;
 }
 
-/* ===================== Update banner (simulated) ===================== */
+/* ===================== Update banner ===================== */
 function applyUpdate(){
+  [state.viewerWeek, state.adminWeekId].forEach(num => {
+    if(num && pendingWeeks[num]){
+      state.weeks[num] = pendingWeeks[num];
+      delete pendingWeeks[num];
+    }
+  });
   document.getElementById('update-banner').classList.remove('show');
   toast('Rooster bijgewerkt');
   render();
 }
-
-// Demo hook: simulate a new version arriving (in production this would be a real check against the backend)
-window.simulateNewVersion = function(){
-  document.getElementById('update-banner').classList.add('show');
-};
 
 /* ===================== PWA install ===================== */
 if('serviceWorker' in navigator){
@@ -1454,6 +1527,8 @@ if('serviceWorker' in navigator){
 }
 
 render();
+loadWeeksFromSupabase();
+setInterval(pollForUpdates, 15000);
 
 </script>
 </body>
