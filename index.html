@@ -258,6 +258,38 @@
   mark.hl-me{ background:var(--amber); color:var(--ink); padding:0 3px; border-radius:3px; font-weight:700; }
   mark.hl-allen{ background:#D8D4F5; color:#3F3877; padding:0 3px; border-radius:3px; font-weight:700; }
 
+  /* ---- contacts modal ---- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(18,33,61,0.55); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-card{
+    background:var(--panel); border-radius:var(--radius); box-shadow:var(--shadow);
+    max-width:480px; width:100%; max-height:80vh; overflow-y:auto; padding:22px;
+  }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .modal-head h2{ margin:0; font-size:18px; }
+  .contacts-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .contacts-col-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:700;
+    color:var(--ink-soft); margin-bottom:8px; border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .contact-row{
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+    padding:6px 0; font-size:13.5px; border-bottom:1px solid var(--line);
+  }
+  .contact-row:last-child{ border-bottom:none; }
+  .contact-naam{ font-weight:600; }
+  .contact-gebied{ font-weight:400; color:var(--ink-soft); font-size:12px; }
+  .contact-nummer{ font-family:'IBM Plex Mono',monospace; color:var(--ink-soft); }
+
+  @media (max-width:480px){
+    .contacts-grid{ grid-template-columns:1fr; gap:16px; }
+    .modal-card{ padding:16px; max-height:85vh; }
+    .modal-head h2{ font-size:16px; }
+    .btn-label-full{ display:none; }
+  }
+
   /* ---- Compact sizing for phones ---- */
   @media (max-width: 480px){
     body{ font-size:13px; }
@@ -347,6 +379,7 @@ const state = {
   newWeekNumber: '',
   newWeekStart: '',
   myInitials: null,       // initials/name the viewer clicked on, to highlight in the table
+  showContacts: false,    // whether the phone-numbers modal is open
   weeks: {},              // { [weekNumber]: weekObject }
   loading: true,
   loadError: null
@@ -426,7 +459,7 @@ function makeEmptyWeek(weekNumber, startDate){
   return {
     weekNumber, startDate,
     fileName: null, rawSheet: null, merges: [],
-    ar, vwaw: null, msk: null, vakgebieden: null, besprekingen: null,
+    ar, vwaw: null, msk: null, vakgebieden: null, besprekingen: null, contacts: null,
     published: false, version: 0
   };
 }
@@ -497,7 +530,7 @@ function toast(msg){
 
 function render(){
   const app = document.getElementById('app');
-  app.innerHTML = topbarHTML() + `<main>${state.role ? screenHTML() : roleSelectHTML()}</main>`;
+  app.innerHTML = topbarHTML() + `<main>${state.role ? screenHTML() : roleSelectHTML()}</main>` + (state.showContacts ? contactsModalHTML() : '');
 }
 
 const APP_LABEL = 'roosterapp-1 · tekstversie';
@@ -515,7 +548,55 @@ function topbarHTML(){
       </div>
     </div>
     <div class="topbar-actions">
+      <button class="btn-ghost" onclick="toggleContacts()">📞 <span class="btn-label-full">Telefoonnummers</span></button>
       <button class="btn-ghost" onclick="goHome()">Wissel rol</button>
+    </div>
+  </div>`;
+}
+
+function getContactsData(){
+  // Always the most recently uploaded week's list — phone numbers aren't really
+  // week-specific, so this should reflect the newest Excel upload automatically,
+  // regardless of which week someone happens to be viewing.
+  const withContacts = sortedWeeks().filter(w => w.contacts).reverse();
+  return withContacts.length ? withContacts[0].contacts : null;
+}
+
+function toggleContacts(){
+  state.showContacts = !state.showContacts;
+  render();
+}
+
+function contactsModalHTML(){
+  const contacts = getContactsData();
+  return `
+  <div class="modal-backdrop" onclick="if(event.target===this) toggleContacts()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Telefoonnummers</h2>
+        <button class="btn-ghost" onclick="toggleContacts()">Sluiten</button>
+      </div>
+      ${!contacts ? `
+        <div class="card empty">
+          <div class="glyph">📞</div>
+          <div style="font-weight:600;color:var(--ink);margin-bottom:4px;">Nog geen telefoonlijst gevonden</div>
+          <div style="font-size:13.5px;">Deze wordt automatisch uit het geüploade Excel-bestand gehaald.</div>
+        </div>` : `
+        <div class="contacts-grid">
+          <div>
+            <div class="contacts-col-title">Radiologen</div>
+            ${contacts.radiologen.map(c => `
+              <div class="contact-row"><span class="contact-naam">${c.naam}</span><span class="contact-nummer">${c.nummer}</span></div>
+            `).join('')}
+          </div>
+          <div>
+            <div class="contacts-col-title">AIOS</div>
+            ${contacts.aios.map(c => `
+              <div class="contact-row"><span class="contact-naam">${c.naam}<span class="contact-gebied">${c.gebied ? ' · ' + c.gebied : ''}</span></span><span class="contact-nummer">${c.nummer}</span></div>
+            `).join('')}
+          </div>
+        </div>
+      `}
     </div>
   </div>`;
 }
@@ -868,7 +949,7 @@ function publish(){
 function resetUpload(){
   const week = state.weeks[state.adminWeekId];
   week.rawSheet = null; week.fileName = null; week.merges = [];
-  week.vwaw = null; week.msk = null; week.vakgebieden = null; week.besprekingen = null;
+  week.vwaw = null; week.msk = null; week.vakgebieden = null; week.besprekingen = null; week.contacts = null;
   render();
 }
 
@@ -890,6 +971,7 @@ function handleUpload(evt){
     detectMSK(week, grid);
     detectVakgebieden(week, grid);
     detectBesprekingen(week, grid);
+    detectContacts(week, grid);
     const arFound = applyDetectedAR(week, grid);
     toast(arFound ? 'Bestand geladen — AR-suggesties ingevuld, controleer hieronder' : 'Bestand geladen — controleer hieronder');
     render();
@@ -966,7 +1048,7 @@ function detectVWAW(week, grid){
   week.vwaw = null;
 }
 
-function stripARTag(v){ return v.replace(/\s*\(AR\)\s*$/i, '').trim(); }
+function stripARTag(v){ return v.replace(/\s*\(AR\)/gi, '').trim(); }
 
 function detectVakgebieden(week, grid){
   const WEEKDAY_RE = /^(ma|di|woe|wo|do|vr)$/i; // exact match only — a loose prefix match would wrongly catch words like "Mammo"
@@ -1033,6 +1115,42 @@ function detectMSK(week, grid){
   week.msk = found ? result : null;
 }
 
+// AIOS list ("Stages", bottom-left): initial + pager number + aandachtsgebied
+// Radiologen list ("Telefoonnummers", bottom-right): initial + pager number
+function detectContacts(week, grid){
+  const aios = [];
+  for(let r=0; r<grid.length; r++){
+    if(cellStr(grid[r][0]) === 'Stages'){
+      for(let rr=r+1; rr<Math.min(r+20, grid.length); rr++){
+        const row = grid[rr] || [];
+        const naam = cellStr(row[2]);
+        const nummer = cellStr(row[3]);
+        const gebied = cellStr(row[4]);
+        if(naam && nummer) aios.push({ naam, nummer, gebied });
+      }
+      break;
+    }
+  }
+
+  const radiologen = [];
+  for(let r=0; r<grid.length; r++){
+    const row = grid[r] || [];
+    for(let c=0; c<row.length; c++){
+      if(cellStr(row[c]).toLowerCase() === 'telefoonnummers'){
+        for(let rr=r+1; rr<Math.min(r+20, grid.length); rr++){
+          const drow = grid[rr] || [];
+          const naam = cellStr(drow[c+2]);
+          const nummer = cellStr(drow[c+3]);
+          if(naam && nummer) radiologen.push({ naam, nummer });
+        }
+        break;
+      }
+    }
+  }
+
+  week.contacts = (aios.length || radiologen.length) ? { aios, radiologen } : null;
+}
+
 function detectBesprekingen(week, grid){
   const find = (predicate) => {
     for(let r=0; r<grid.length; r++){
@@ -1092,20 +1210,26 @@ function detectAR(grid){
   };
 
   // --- Pattern 1: inline "(AR)" within the modaliteiten day-columns (col1..col5 = Ma..Vr) ---
+  // "(AR)" can be glued directly onto just one name inside a "/"-separated cell,
+  // e.g. "CT(AR)/HZ" or "allen/JB/SK(AR)" — so check each "/"-part individually.
   for(let r=0; r<grid.length; r++){
     const row = grid[r] || [];
     if(cellStr(row[0]) === 'Stages') break;
     const label = cellStr(row[0]).toLowerCase();
     for(let i=0; i<5; i++){
       const cellVal = cellStr(row[i+1]);
-      const m = cellVal.match(/^(.*?)\s*\(AR\)\s*$/i);
-      if(!m) continue;
-      const naam = m[1].trim();
-      if(!naam) continue;
-      const day = DAYS[i];
-      if(label === 'mo') setSuggestion(day, 'ochtend', naam);
-      else if(label === 'mi') setSuggestion(day, 'middag', naam);
-      else setSuggestion(day, 'both', naam); // row doesn't distinguish ochtend/middag
+      if(!/\(AR\)/i.test(cellVal)) continue;
+      const parts = cellVal.split('/');
+      parts.forEach(part => {
+        const m = part.match(/^(.*?)\s*\(AR\)\s*$/i);
+        if(!m) return;
+        const naam = m[1].trim();
+        if(!naam) return;
+        const day = DAYS[i];
+        if(label === 'mo') setSuggestion(day, 'ochtend', naam);
+        else if(label === 'mi') setSuggestion(day, 'middag', naam);
+        else setSuggestion(day, 'both', naam); // row doesn't distinguish ochtend/middag
+      });
     }
   }
 
@@ -1171,13 +1295,6 @@ function applyDetectedAR(week, grid){
       if(!slot.naam && suggestion.naam){ slot.naam = suggestion.naam; filledAny = true; }
       if(!slot.supervisor && suggestion.supervisor){ slot.supervisor = suggestion.supervisor; filledAny = true; }
     });
-    // If no AR name was found for the middag, whoever has achterwacht that day covers it.
-    const middag = week.ar[d].middag;
-    const aw = week.vwaw && week.vwaw[d] ? week.vwaw[d].aw : null;
-    if(!middag.naam && aw && aw !== '—'){
-      middag.naam = aw;
-      filledAny = true;
-    }
   });
   return filledAny;
 }
