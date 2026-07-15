@@ -421,6 +421,16 @@ async function saveWeekToSupabase(week){
   }
 }
 
+async function deleteWeekFromSupabase(weekNumber){
+  try{
+    const { error } = await supabaseClient.from('weeks').delete().eq('week_number', weekNumber);
+    if(error) throw error;
+  } catch(err){
+    console.error('Supabase delete failed', err);
+    toast('Verwijderen op de server is mislukt — controleer je internetverbinding en probeer opnieuw');
+  }
+}
+
 async function pollForUpdates(){
   try{
     const { data, error } = await supabaseClient.from('weeks').select('week_number, data');
@@ -791,11 +801,23 @@ function createWeek(){
 function openWeek(n){ state.adminWeekId = n; render(); }
 function backToWeekList(){ state.adminWeekId = null; render(); }
 
+function deleteWeek(weekNumber){
+  const confirmed = window.confirm('Week ' + weekNumber + ' volledig verwijderen? Dit kan niet ongedaan worden gemaakt.');
+  if(!confirmed) return;
+  delete state.weeks[weekNumber];
+  if(state.adminWeekId === weekNumber) state.adminWeekId = null;
+  if(state.viewerWeek === weekNumber) state.viewerWeek = null;
+  deleteWeekFromSupabase(weekNumber);
+  toast('Week ' + weekNumber + ' verwijderd');
+  render();
+}
+
 /* ===================== Admin: week detail ===================== */
 function adminWeekDetailHTML(week){
   let html = weekBoardHTML(week);
-  html += `<div class="btn-row" style="justify-content:flex-start;margin-bottom:4px;">
+  html += `<div class="btn-row" style="justify-content:space-between;margin-bottom:4px;">
     <button class="btn-ghost" onclick="backToWeekList()">← Alle weken</button>
+    <button class="btn-ghost" style="color:var(--red);border-color:var(--red);" onclick="deleteWeek(${week.weekNumber})">Verwijder week</button>
   </div>`;
 
   if(!week.rawSheet){
@@ -817,7 +839,7 @@ function adminWeekDetailHTML(week){
         <span class="badge-source">${week.fileName}</span>
       </div>
       <div class="btn-row" style="justify-content:flex-start;margin-top:0;">
-        <button class="btn-ghost" onclick="resetUpload()">Ander bestand</button>
+        <button class="btn-ghost" onclick="resetUpload()">Verwijder bestand</button>
       </div>
     </div>`;
   }
