@@ -380,6 +380,20 @@ const state = {
   newWeekStart: '',
   myInitials: null,       // initials/name the viewer clicked on, to highlight in the table
   showContacts: false,    // whether the phone-numbers modal is open
+  importantContacts: [    // fixed numbers, not tied to any week — editable by the beheerder
+    { naam:'Receptie', nummer:'99' },
+    { naam:'FB', nummer:'2385' },
+    { naam:'Planning', nummer:'5214' },
+    { naam:'Omloop', nummer:'2943' },
+    { naam:'E2', nummer:'4697' },
+    { naam:'Admin', nummer:'5135' },
+    { naam:'CT (ook in dienst)', nummer:'5133' },
+    { naam:'Omloop SEH', nummer:'2943' },
+    { naam:'DL', nummer:'4704' },
+    { naam:'MR 2', nummer:'4701' },
+    { naam:'MR bediening', nummer:'5134' },
+    { naam:'MRI planning', nummer:'5214' }
+  ],
   weeks: {},              // { [weekNumber]: weekObject }
   loading: true,
   loadError: null
@@ -402,9 +416,36 @@ async function loadWeeksFromSupabase(){
     console.error('Supabase load failed', err);
     state.loadError = 'Kon het rooster niet laden — controleer je internetverbinding en vernieuw de pagina.';
   }
+  await loadSettingsFromSupabase();
   state.loading = false;
   ensureViewerWeek();
   render();
+}
+
+async function loadSettingsFromSupabase(){
+  try{
+    const { data, error } = await supabaseClient.from('settings').select('data').eq('key', 'important_contacts').maybeSingle();
+    if(error) throw error;
+    if(data && Array.isArray(data.data)) state.importantContacts = data.data;
+  } catch(err){
+    console.error('Supabase settings load failed', err);
+    // keep the built-in defaults if this fails
+  }
+}
+
+async function saveImportantContacts(){
+  try{
+    const { error } = await supabaseClient.from('settings').upsert({
+      key: 'important_contacts',
+      data: state.importantContacts,
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+    toast('Belangrijke nummers opgeslagen');
+  } catch(err){
+    console.error('Supabase settings save failed', err);
+    toast('Opslaan is mislukt — controleer je internetverbinding en probeer opnieuw');
+  }
 }
 
 async function saveWeekToSupabase(week){
@@ -579,6 +620,7 @@ function toggleContacts(){
 
 function contactsModalHTML(){
   const contacts = getContactsData();
+  const important = (state.importantContacts || []).filter(c => c.naam && c.nummer);
   return `
   <div class="modal-backdrop" onclick="if(event.target===this) toggleContacts()">
     <div class="modal-card">
@@ -586,6 +628,13 @@ function contactsModalHTML(){
         <h2>Telefoonnummers</h2>
         <button class="btn-ghost" onclick="toggleContacts()">Sluiten</button>
       </div>
+      ${important.length ? `
+        <div class="contacts-grid" style="margin-bottom:18px;gap:2px 20px;">
+          ${important.map(c => `
+            <div class="contact-row"><span class="contact-naam">${c.naam}</span><span class="contact-nummer">${c.nummer}</span></div>
+          `).join('')}
+        </div>
+      ` : ''}
       ${!contacts ? `
         <div class="card empty">
           <div class="glyph">📞</div>
@@ -716,6 +765,9 @@ function adminWeekListHTML(){
   const archived = sortedWeeks().filter(w => getStatus(w) === 'gearchiveerd').reverse();
 
   let html = weekBoardHTML(null);
+
+  html += importantContactsEditorHTML();
+
   html += `<div class="section-head"><h2>Weekroosters</h2></div>`;
 
   if(active.length){
@@ -734,6 +786,43 @@ function adminWeekListHTML(){
     </div>`;
   }
   return html;
+}
+
+function importantContactsEditorHTML(){
+  return `
+  <div class="section">
+    <div class="section-head">
+      <h2>Belangrijke nummers</h2>
+      <span class="hint">staan bovenaan bij iedereen — blijven hetzelfde, los van het weekrooster</span>
+    </div>
+    <div class="card pad">
+      ${state.importantContacts.map((c, i) => `
+        <div class="grid2" style="margin-bottom:10px;">
+          <div class="field" style="margin-bottom:0;">
+            <label>Naam</label>
+            <input type="text" value="${c.naam}" oninput="updateImportantContact(${i}, 'naam', this.value)">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Nummer</label>
+            <input type="text" value="${c.nummer}" oninput="updateImportantContact(${i}, 'nummer', this.value)">
+          </div>
+        </div>
+      `).join('')}
+      <div class="btn-row" style="justify-content:space-between;">
+        <button class="btn-ghost" onclick="addImportantContact()">+ Nummer toevoegen</button>
+        <button class="btn-primary" onclick="saveImportantContacts()">Opslaan</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateImportantContact(index, field, value){
+  state.importantContacts[index][field] = value;
+}
+
+function addImportantContact(){
+  state.importantContacts.push({ naam:'', nummer:'' });
+  render();
 }
 
 function weekCardHTML(w){
