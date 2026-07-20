@@ -183,6 +183,10 @@
     font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600;
     padding:10px 12px; text-align:left;
   }
+  .day-count{
+    font-size:9.5px; text-transform:none; letter-spacing:0; font-weight:500;
+    color:#B8C3D9; margin-top:2px;
+  }
   table.vak-table td{ padding:8px 12px; border-bottom:1px solid var(--line); font-size:13px; }
   table.vak-table tr:last-child td{ border-bottom:none; }
   .vak-section-row td{
@@ -270,6 +274,15 @@
   .modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
   .modal-head h2{ margin:0; font-size:18px; }
   .contacts-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .contacts-edit-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; margin-bottom:12px; }
+  .contacts-edit-row{ display:flex; gap:6px; }
+  .contacts-edit-row input{
+    width:100%; padding:5px 8px; border:1px solid var(--line); border-radius:6px;
+    font-family:inherit; font-size:12.5px; background:#fff;
+  }
+  .contacts-edit-row input:focus{ outline:2px solid var(--amber); outline-offset:1px; border-color:var(--amber); }
+  .contacts-edit-row input:first-child{ flex:1.1; }
+  .contacts-edit-row input:last-child{ flex:0.8; }
   .contacts-col-title{
     font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:700;
     color:var(--ink-soft); margin-bottom:8px; border-bottom:1px solid var(--line); padding-bottom:6px;
@@ -285,6 +298,7 @@
 
   @media (max-width:480px){
     .contacts-grid{ grid-template-columns:1fr; gap:16px; }
+    .contacts-edit-grid{ grid-template-columns:1fr; }
     .modal-card{ padding:16px; max-height:85vh; }
     .modal-head h2{ font-size:16px; }
     .btn-label-full{ display:none; }
@@ -511,6 +525,7 @@ function makeEmptyWeek(weekNumber, startDate){
     weekNumber, startDate,
     fileName: null, rawSheet: null, merges: [],
     ar, vwaw: null, msk: null, vakgebieden: null, besprekingen: null, contacts: null,
+    vergaderingen: null, echoSchedelsEntries: null,
     published: false, version: 0
   };
 }
@@ -766,8 +781,6 @@ function adminWeekListHTML(){
 
   let html = weekBoardHTML(null);
 
-  html += importantContactsEditorHTML();
-
   html += `<div class="section-head"><h2>Weekroosters</h2></div>`;
 
   if(active.length){
@@ -785,6 +798,9 @@ function adminWeekListHTML(){
       <div class="week-list">${archived.map(weekCardHTML).join('')}</div>
     </div>`;
   }
+
+  html += `<div style="margin-top:32px;">${importantContactsEditorHTML()}</div>`;
+
   return html;
 }
 
@@ -796,18 +812,14 @@ function importantContactsEditorHTML(){
       <span class="hint">staan bovenaan bij iedereen — blijven hetzelfde, los van het weekrooster</span>
     </div>
     <div class="card pad">
-      ${state.importantContacts.map((c, i) => `
-        <div class="grid2" style="margin-bottom:10px;">
-          <div class="field" style="margin-bottom:0;">
-            <label>Naam</label>
-            <input type="text" value="${c.naam}" oninput="updateImportantContact(${i}, 'naam', this.value)">
+      <div class="contacts-edit-grid">
+        ${state.importantContacts.map((c, i) => `
+          <div class="contacts-edit-row">
+            <input type="text" placeholder="Naam" value="${c.naam}" oninput="updateImportantContact(${i}, 'naam', this.value)">
+            <input type="text" placeholder="Nummer" value="${c.nummer}" oninput="updateImportantContact(${i}, 'nummer', this.value)">
           </div>
-          <div class="field" style="margin-bottom:0;">
-            <label>Nummer</label>
-            <input type="text" value="${c.nummer}" oninput="updateImportantContact(${i}, 'nummer', this.value)">
-          </div>
-        </div>
-      `).join('')}
+        `).join('')}
+      </div>
       <div class="btn-row" style="justify-content:space-between;">
         <button class="btn-ghost" onclick="addImportantContact()">+ Nummer toevoegen</button>
         <button class="btn-primary" onclick="saveImportantContacts()">Opslaan</button>
@@ -928,7 +940,7 @@ function adminWeekDetailHTML(week){
         <span class="badge-source">${week.fileName}</span>
       </div>
       <div class="btn-row" style="justify-content:flex-start;margin-top:0;">
-        <button class="btn-ghost" onclick="resetUpload()">Verwijder bestand</button>
+        <button class="btn-ghost" onclick="resetUpload()">Vervang bestand</button>
       </div>
     </div>`;
   }
@@ -945,57 +957,12 @@ function adminWeekDetailHTML(week){
   </div>`;
 
   if(week.vwaw){
-    html += `
-    <div class="section">
-      <div class="section-head"><h2>Voor-/achterwacht — automatisch herkend</h2><span class="hint">controleer even</span></div>
-      <div class="card pad">
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">&nbsp;</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;">${DAY_LABELS[d]}</div>`).join('')}
-        </div>
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">Voorwacht</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.vw || '—'}</div>`).join('')}
-        </div>
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">Achterwacht</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.aw || '—'}</div>`).join('')}
-        </div>
-        ${week.vwaw.weekend && week.vwaw.weekend.length ? `
-        <div style="padding:14px 16px 0;">
-          <div style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Weekend</div>
-          <div class="weekend-strip">
-            ${week.vwaw.weekend.map(w=>`<div class="weekend-item"><b>${w.label}</b>${w.value}</div>`).join('')}
-          </div>
-        </div>` : ''}
-      </div>
-    </div>`;
+    html += vwawCardHTML(week, 'Voor-/achterwacht — automatisch herkend', 'controleer even');
   } else if(week.rawSheet){
     html += `
     <div class="section">
       <div class="card pad">
         <span class="hint">Voor-/achterwachtschema niet automatisch gevonden in dit bestand — dat is niet erg, de interne viewer toont sowieso het hele rooster.</span>
-      </div>
-    </div>`;
-  }
-
-  if(week.msk){
-    html += `
-    <div class="section">
-      <div class="section-head"><h2>MSK — automatisch herkend</h2></div>
-      <div class="card pad">
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">&nbsp;</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;">${DAY_LABELS[d]}</div>`).join('')}
-        </div>
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">MSK</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.msk[d]?.msk || '—'}</div>`).join('')}
-        </div>
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">Echo MSK</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.msk[d]?.echoMsk || '—'}</div>`).join('')}
-        </div>
       </div>
     </div>`;
   }
@@ -1061,6 +1028,7 @@ function resetUpload(){
   const week = state.weeks[state.adminWeekId];
   week.rawSheet = null; week.fileName = null; week.merges = [];
   week.vwaw = null; week.msk = null; week.vakgebieden = null; week.besprekingen = null; week.contacts = null;
+  week.vergaderingen = null; week.echoSchedelsEntries = null;
   render();
 }
 
@@ -1081,6 +1049,8 @@ function handleUpload(evt){
     detectVWAW(week, grid);
     detectMSK(week, grid);
     detectVakgebieden(week, grid);
+    detectVergaderingen(week, grid);
+    injectEchoSchedels(week);
     detectBesprekingen(week, grid);
     detectContacts(week, grid);
     const arFound = applyDetectedAR(week, grid);
@@ -1123,6 +1093,33 @@ function besprekingenTableHTML(week){
   </div>`;
 }
 
+function vergaderingenTableHTML(week){
+  if(!week.vergaderingen) return '';
+  const dagLabel = { ma:'Ma', di:'Di', wo:'Wo', do:'Do', vr:'Vr' };
+  const rows = week.vergaderingen.map(item => `
+    <tr>
+      <td class="vak-row-label">${dagLabel[item.dag.toLowerCase()] || item.dag}</td>
+      <td>${item.dagdeel || '—'}</td>
+      <td>${item.onderwerp}</td>
+      ${renderCell(item.wie)}
+    </tr>`).join('');
+
+  return `
+  <div class="section">
+    <div class="section-head"><h2>Vergaderingen/bijzonderheden</h2><span class="hint">highlightbaar</span></div>
+    <div class="raw-wrap">
+      <table class="vak-table">
+        <thead>
+          <tr>
+            <th>Dag</th><th>Dagdeel/tijd</th><th>Bijzonderheid</th><th>Wie</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
 function detectVWAW(week, grid){
   // Look for a row whose cells include "Dienst" followed by Ma/Di/Wo/Do header, then vw/aw rows beneath
   for(let r=0; r<grid.length; r++){
@@ -1133,7 +1130,7 @@ function detectVWAW(week, grid){
     const result = {};
     for(let rr = r+1; rr < Math.min(r+6, grid.length); rr++){
       const label = cellStr(grid[rr][idx]).toLowerCase();
-      if(label === 'vw' || label === 'aw'){
+      if(label === 'vw' || label === 'aw' || label === 'iv'){
         DAYS.forEach((d,i)=>{
           result[d] = result[d] || {};
           result[d][label] = cellStr(grid[rr][cols[i]]) || '—';
@@ -1142,21 +1139,71 @@ function detectVWAW(week, grid){
     }
     if(Object.keys(result).length){
       week.vwaw = result;
-      const weekend = [];
-      for(let rr=r; rr<Math.min(r+30, grid.length); rr++){
+
+      // The weekend detail lines ("vrij 16.30 - zat 09.00 u: voorwacht: QD") sit
+      // ABOVE the "Dienst" table, not below it — scan backwards to find them.
+      // Each line's starting day-word (vrij/zat/zon) is the day it belongs to —
+      // within a day, all timeblocks share the same voorwacht/achterwacht person.
+      const WEEKEND_RE = /^(vrij|zat|zon|maan)\w*\s*([\d.:]+)\s*-\s*(vrij|zat|zon|maan)?\w*\s*([\d.:]+)\s*u:\s*(voorwacht|achterwacht)/i;
+      const DAYWORD_MAP = { vrij:'vrijdag', zat:'zaterdag', zon:'zondag' };
+      const weekend = { vrijdag:{vw:null,aw:null}, zaterdag:{vw:null,aw:null}, zondag:{vw:null,aw:null} };
+      for(let rr = Math.max(0, r-30); rr < r; rr++){
         for(let cc=0; cc<grid[rr].length; cc++){
           const t = cellStr(grid[rr][cc]);
-          if(/voorwacht|achterwacht/i.test(t) && /u:/.test(t)){
-            const rest = grid[rr].slice(cc+1).map(cellStr).filter(Boolean);
-            weekend.push({label:t, value: rest[0] || ''});
-          }
+          const m = t.match(WEEKEND_RE);
+          if(!m) continue;
+          const rest = grid[rr].slice(cc+1).map(cellStr).filter(Boolean);
+          const naam = rest[0] || '';
+          const dayKey = DAYWORD_MAP[m[1].toLowerCase()];
+          if(!dayKey || !naam) continue;
+          const type = /voorwacht/i.test(m[5]) ? 'vw' : 'aw';
+          if(!weekend[dayKey][type]) weekend[dayKey][type] = naam; // first wins; stays consistent within a day
         }
       }
-      if(weekend.length) week.vwaw.weekend = weekend;
+      const hasWeekend = Object.values(weekend).some(d => d.vw || d.aw);
+      week.vwaw.weekend = hasWeekend ? weekend : null;
+      // "Vrijdag" in the Ma-Vr row otherwise just says "zie boven" — fill in the real name.
+      if(hasWeekend){
+        if(weekend.vrijdag.vw) week.vwaw.vr.vw = weekend.vrijdag.vw;
+        if(weekend.vrijdag.aw) week.vwaw.vr.aw = weekend.vrijdag.aw;
+      }
       return;
     }
   }
   week.vwaw = null;
+}
+
+function vwawCardHTML(week, titel, hint, opts){
+  opts = opts || {};
+  const w = week.vwaw.weekend;
+  const shortDays = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+  const rows = [
+    { label: opts.abbreviate ? 'VW' : 'Voorwacht', values: [...DAYS.map(d => week.vwaw[d]?.vw), w?.zaterdag?.vw, w?.zondag?.vw] },
+    { label: opts.abbreviate ? 'AW' : 'Achterwacht', values: [...DAYS.map(d => week.vwaw[d]?.aw), w?.zaterdag?.aw, w?.zondag?.aw] },
+    { label:'IR', values: [...DAYS.map(d => week.vwaw[d]?.iv), week.vwaw.vr?.iv, week.vwaw.vr?.iv] }
+  ];
+  return `
+  <div class="section">
+    <div class="section-head"><h2>${titel}</h2>${hint ? `<span class="hint">${hint}</span>` : ''}</div>
+    <div class="raw-wrap">
+      <table class="vak-table">
+        <thead>
+          <tr><th class="vak-corner"></th>${shortDays.map(d => `<th>${d}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td class="vak-row-label">${r.label}</td>
+              ${r.values.map(v => {
+                const { html, matched } = highlightText(v);
+                return matched ? `<td class="hl-row">${html}</td>` : `<td>${html || '—'}</td>`;
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
 }
 
 function stripARTag(v){ return v.replace(/\s*\(AR\)/gi, '').trim(); }
@@ -1228,6 +1275,55 @@ function detectMSK(week, grid){
 
 // AIOS list ("Stages", bottom-left): initial + pager number + aandachtsgebied
 // Radiologen list ("Telefoonnummers", bottom-right): initial + pager number
+// "Vergaderingen/bijzonderheden": dag | dagdeel-of-tijd | onderwerp | (2 lege kolommen) | wie
+// De "echo schedels" regel gaat niet in deze losse lijst, maar als eigen rij bij Echo algemeen.
+function detectVergaderingen(week, grid){
+  let anchorRow = null, anchorCol = null;
+  for(let r=0; r<grid.length && anchorRow===null; r++){
+    const row = grid[r] || [];
+    for(let c=0; c<row.length; c++){
+      if(cellStr(row[c]).toLowerCase() === 'vergaderingen/bijzonderheden'){ anchorRow = r; anchorCol = c; break; }
+    }
+  }
+  if(anchorRow === null){ week.vergaderingen = null; week.echoSchedelsEntries = null; return; }
+
+  const items = [];
+  const echoSchedels = [];
+  for(let r=anchorRow+1; r<grid.length; r++){
+    const row = grid[r] || [];
+    const dag = cellStr(row[anchorCol]);
+    if(dag.toUpperCase() === 'AR') break; // reached the AR sub-block — stop here
+    const dagdeel = cellStr(row[anchorCol+1]);
+    const onderwerp = cellStr(row[anchorCol+2]);
+    const wie = cellStr(row[anchorCol+5]);
+    if(!dag && !onderwerp) continue;
+    if(/echo schedels/i.test(onderwerp)){
+      echoSchedels.push({ dag, wie });
+    } else if(onderwerp){
+      items.push({ dag, dagdeel, onderwerp, wie });
+    }
+  }
+  week.vergaderingen = items.length ? items : null;
+  week.echoSchedelsEntries = echoSchedels.length ? echoSchedels : null;
+}
+
+// Folds "echo schedels" entries into the Echo algemeen section as their own row,
+// the same way "echo msk" already appears there.
+function injectEchoSchedels(week){
+  if(!week.echoSchedelsEntries || !week.vakgebieden) return;
+  const section = week.vakgebieden.sections.find(s => s.name.toLowerCase() === 'echo algemeen');
+  if(!section) return;
+  let row = section.rows.find(r => (r.label || '').toLowerCase() === 'echo schedels');
+  if(!row){
+    row = { label: 'echo schedels', days: ['', '', '', '', ''] };
+    section.rows.push(row);
+  }
+  week.echoSchedelsEntries.forEach(e => {
+    const dayIdx = DAYS.indexOf(e.dag.toLowerCase());
+    if(dayIdx >= 0 && e.wie) row.days[dayIdx] = e.wie;
+  });
+}
+
 function detectContacts(week, grid){
   const aios = [];
   for(let r=0; r<grid.length; r++){
@@ -1484,6 +1580,11 @@ function weekTableHTML(week, opts){
     }
   }
 
+  aiosInitials = new Set((week.contacts?.aios || []).map(c => c.naam.trim().toLowerCase()));
+  radiologenInitials = new Set((week.contacts?.radiologen || []).map(c => c.naam.trim().toLowerCase()));
+
+  const dayCounts = DAYS.map((d, i) => countRadiologenPresent(week, sections, i));
+
   let html = '';
   if(opts.showMeSelector) html += meSelectorHTML(week);
 
@@ -1495,7 +1596,7 @@ function weekTableHTML(week, opts){
         <thead>
           <tr>
             <th class="vak-corner"></th>
-            ${headerLabels.map(h => `<th>${h}</th>`).join('')}
+            ${headerLabels.map((h, i) => `<th>${h}${dayCounts[i] ? `<div class="day-count">${dayCounts[i].present}/${dayCounts[i].total}</div>` : ''}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -1529,6 +1630,10 @@ function weekTableHTML(week, opts){
     html += besprekingenTableHTML(week);
   }
 
+  if(week.vergaderingen){
+    html += vergaderingenTableHTML(week);
+  }
+
   return html;
 }
 
@@ -1546,9 +1651,44 @@ function internHTML(){
     return html;
   }
 
+  if(week.vwaw){
+    html += vwawCardHTML(week, 'Voor-/achterwacht', null, { abbreviate: true });
+  }
+
   html += weekTableHTML(week, { showMeSelector: true });
 
   return html;
+}
+
+let aiosInitials = new Set();
+let radiologenInitials = new Set();
+
+function isAiosName(name){
+  return aiosInitials.has((name || '').trim().toLowerCase());
+}
+
+// How many distinct radiologen have some assignment that day, across all sections
+// (excluding Acute, which is manually entered rather than part of the sheet itself).
+function countRadiologenPresent(week, sections, dayIndex){
+  if(!week.contacts || !week.contacts.radiologen.length || !radiologenInitials.size) return null;
+  const present = new Set();
+  sections.forEach(sec => {
+    if(sec.name === 'Acute') return;
+    sec.rows.forEach(row => {
+      const cell = row.days[dayIndex];
+      if(!cell) return;
+      cell.split(/[^A-Za-zÀ-ÖØ-öø-ÿ]+/).forEach(tok => {
+        const clean = tok.trim().toLowerCase();
+        if(radiologenInitials.has(clean)) present.add(clean);
+      });
+    });
+  });
+  return { present: present.size, total: week.contacts.radiologen.length };
+}
+
+function containsRadioloog(text){
+  if(!text) return false;
+  return text.split(/[^A-Za-zÀ-ÖØ-öø-ÿ]+/).some(tok => radiologenInitials.has(tok.trim().toLowerCase()));
 }
 
 function mergeSupervisieIntoRows(rows){
@@ -1562,6 +1702,36 @@ function mergeSupervisieIntoRows(rows){
   const ochtendRows = mainRows.filter(r => ['mo','seh'].includes((r.label || '').toLowerCase()));
   const middagRows = mainRows.filter(r => (r.label || '').toLowerCase() === 'mi');
 
+  // Adds the supervisor to a single cell — skipping it entirely if it's the same
+  // person already assigned there, and wrapping it in parentheses either way
+  // (whether appended to an existing name, or standing alone with no assignee).
+  // An AIOS can never be the supervisor of a radioloog, however the sheet has it
+  // written — if that combination shows up, just ignore it rather than display it.
+  const applySup = (row, i, sup) => {
+    const existing = row.days[i];
+    if(isAiosName(sup) && containsRadioloog(existing)) return;
+    if(!existing){
+      row.days[i] = `(${sup})`;
+    } else if(existing.trim().toLowerCase() !== sup.trim().toLowerCase()){
+      row.days[i] = `${existing} (${sup})`;
+    }
+    // else: same person — nothing to add, avoid a redundant "(name)"
+  };
+
+  // Applies a supervisor to a group of rows (e.g. all ochtend-slots) for one day:
+  // if any row in the group already has someone assigned, only touch those rows
+  // (an empty row there just means that service isn't scheduled, not "supervisor only");
+  // if the whole group is empty, the supervisor is the only info for that day.
+  const applyToGroup = (group, i, sup) => {
+    if(!group.length) return;
+    const anyFilled = group.some(r => r.days[i]);
+    if(anyFilled){
+      group.forEach(r => { if(r.days[i]) applySup(r, i, sup); });
+    } else {
+      applySup(group[group.length - 1], i, sup);
+    }
+  };
+
   for(let i=0; i<5; i++){
     const sup = supRow.days[i];
     if(!sup) continue;
@@ -1570,18 +1740,10 @@ function mergeSupervisieIntoRows(rows){
     // a split value is never one combined supervisor for the whole day.
     const parts = sup.split('/').map(p => p.trim()).filter(Boolean);
     if(parts.length === 2 && ochtendRows.length && middagRows.length){
-      ochtendRows.forEach(r => { r.days[i] = r.days[i] ? `${r.days[i]} (${parts[0]})` : parts[0]; });
-      middagRows.forEach(r => { r.days[i] = r.days[i] ? `${r.days[i]} (${parts[1]})` : parts[1]; });
-      continue;
-    }
-
-    const anyFilled = mainRows.some(r => r.days[i]);
-    if(anyFilled){
-      // attach the supervisor in parentheses to whichever row(s) already have a name that day
-      mainRows.forEach(r => { if(r.days[i]) r.days[i] = `${r.days[i]} (${sup})`; });
+      applyToGroup(ochtendRows, i, parts[0]);
+      applyToGroup(middagRows, i, parts[1]);
     } else {
-      // no AIOS recorded that day — a radioloog is doing it directly, show the name plain
-      mainRows[mainRows.length - 1].days[i] = sup;
+      applyToGroup(mainRows, i, sup);
     }
   }
   return mainRows;
@@ -1620,22 +1782,27 @@ function hasOtherFunctionThatDay(sections, dayIndex, initials){
   return false;
 }
 
-function renderCell(v, dayIndex){
+function highlightText(v, dayIndex){
   const text = v || '—';
-  if(!state.myInitials || text === '—') return `<td>${text}</td>`;
+  if(!state.myInitials || text === '—') return { html: text, matched: false };
 
   const meRe = new RegExp(`\\b(${escapeRegExp(state.myInitials)})\\b`, 'g');
   const hasMe = meRe.test(text);
   const allenAllowed = typeof dayIndex === 'number' && allenAllowedDays.has(dayIndex);
   const allenRe = /\ballen\b/gi;
   const hasAllen = allenAllowed && allenRe.test(text);
-  if(!hasMe && !hasAllen) return `<td>${text}</td>`;
+  if(!hasMe && !hasAllen) return { html: text, matched: false };
 
   let highlighted = text.replace(new RegExp(`\\b(${escapeRegExp(state.myInitials)})\\b`, 'g'), '<mark class="hl-me">$1</mark>');
   if(hasAllen){
     highlighted = highlighted.replace(/\ballen\b/gi, '<mark class="hl-allen">$&</mark>');
   }
-  return `<td class="hl-row">${highlighted}</td>`;
+  return { html: highlighted, matched: true };
+}
+
+function renderCell(v, dayIndex){
+  const { html, matched } = highlightText(v, dayIndex);
+  return matched ? `<td class="hl-row">${html}</td>` : `<td>${html}</td>`;
 }
 
 const NAME_STOPWORDS = new Set(['x','allen','tot','na','uur','svv','gaat','niet','door','supervisie','week']);
@@ -1656,6 +1823,9 @@ function collectInitials(week){
   }
   if(week.besprekingen){
     week.besprekingen.forEach(item => { if(item.type === 'row') texts.push(item.wie); });
+  }
+  if(week.vergaderingen){
+    week.vergaderingen.forEach(item => texts.push(item.wie));
   }
 
   const tokens = new Set();
@@ -1729,31 +1899,7 @@ function sehHTML(){
   </div>`;
 
   if(week.vwaw){
-    html += `
-    <div class="section">
-      <div class="section-head"><h2>Voor-/achterwacht</h2></div>
-      <div class="card pad">
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">&nbsp;</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;">${DAY_LABELS[d]}</div>`).join('')}
-        </div>
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">Voorwacht</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.vw || '—'}</div>`).join('')}
-        </div>
-        <div class="day-row" style="grid-template-columns:96px repeat(5,1fr);">
-          <div class="day-label">Achterwacht</div>
-          ${DAYS.map(d=>`<div style="padding:6px 10px;">${week.vwaw[d]?.aw || '—'}</div>`).join('')}
-        </div>
-        ${week.vwaw.weekend && week.vwaw.weekend.length ? `
-        <div style="padding:14px 16px 4px;">
-          <div style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Weekend</div>
-          <div class="weekend-strip">
-            ${week.vwaw.weekend.map(w=>`<div class="weekend-item"><b>${w.label}</b>${w.value}</div>`).join('')}
-          </div>
-        </div>` : ''}
-      </div>
-    </div>`;
+    html += vwawCardHTML(week, 'Voor-/achterwacht', null);
   }
 
   html += weekTableHTML(week, { showMeSelector: false });
