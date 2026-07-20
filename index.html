@@ -413,6 +413,16 @@ const state = {
   loadError: null
 };
 
+// Safety net: these are recomputed fresh from the active week's own data every time
+// weekTableHTML/vwawCardHTML render — but we also explicitly wipe them on every
+// week switch, so nothing from a previously viewed week can ever linger by accident.
+function resetPerWeekCaches(){
+  showRawFallback = false;
+  aiosInitials = new Set();
+  radiologenInitials = new Set();
+  allenAllowedDays = new Set();
+}
+
 /* ===================== Supabase (shared storage) ===================== */
 const SUPABASE_URL = 'https://tyvnsadoutyheanzfvry.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IKMu81Bs0UZm361MQWzgIA_M_g3Q27i';
@@ -724,7 +734,7 @@ function selectRole(r){
   else ensureViewerWeek();
   render();
 }
-function goHome(){ state.role = null; state.adminWeekId = null; render(); }
+function goHome(){ resetPerWeekCaches(); state.role = null; state.adminWeekId = null; render(); }
 
 /* ===================== Router ===================== */
 function screenHTML(){
@@ -764,7 +774,7 @@ function weekSelectorHTML(){
   return html;
 }
 
-function selectViewerWeek(n){ state.viewerWeek = n; render(); }
+function selectViewerWeek(n){ resetPerWeekCaches(); state.viewerWeek = n; render(); }
 function toggleHistory(){ state.showHistory = !state.showHistory; render(); }
 
 /* ===================== Admin: week list ===================== */
@@ -899,8 +909,8 @@ function createWeek(){
   render();
 }
 
-function openWeek(n){ state.adminWeekId = n; render(); }
-function backToWeekList(){ state.adminWeekId = null; render(); }
+function openWeek(n){ resetPerWeekCaches(); state.adminWeekId = n; render(); }
+function backToWeekList(){ resetPerWeekCaches(); state.adminWeekId = null; render(); }
 
 function deleteWeek(weekNumber){
   const confirmed = window.confirm('Week ' + weekNumber + ' volledig verwijderen? Dit kan niet ongedaan worden gemaakt.');
@@ -1404,8 +1414,17 @@ function detectAR(grid){
   const setSuggestion = (day, part, naam, supervisor) => {
     if(!naam) return;
     const apply = (slot) => {
-      suggestions[day][slot].naam = suggestions[day][slot].naam || naam;
-      if(supervisor) suggestions[day][slot].supervisor = suggestions[day][slot].supervisor || supervisor;
+      const target = suggestions[day][slot];
+      if(!target.naam){
+        // nobody's claimed this slot yet — this naam (and its supervisor) applies
+        target.naam = naam;
+        if(supervisor) target.supervisor = supervisor;
+      } else if(target.naam.trim().toLowerCase() === naam.trim().toLowerCase() && supervisor && !target.supervisor){
+        // same person already there — fine to add the supervisor we found for them
+        target.supervisor = supervisor;
+      }
+      // else: a different name already occupies this slot — this supervisor belongs
+      // to a different note entirely, so it must not be attached here
     };
     if(part === 'ochtend' || part === 'both') apply('ochtend');
     if(part === 'middag' || part === 'both') apply('middag');
